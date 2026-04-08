@@ -306,8 +306,7 @@
     const userLabel = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Гость";
 
     const BASE_URL = "http://127.0.0.1:8080";
-    const LS_LISTINGS = "giftmatch_exchange_offers_global";
-    const LS_ORDERS = `giftmatch_exchange_requests_${userId}`;
+    const FEE_PER_PARTICIPANT_TON = 0.6;
 
     const state = {
         gifts: [],
@@ -394,8 +393,11 @@
                     <div class="price">Хочет: ${escapeHtml(item.wanted_gift)}</div>
                 </div>
                 <div class="row">
-                    <span class="badge">user: ${item.seller_name}</span>
+                    <span class="badge">user: ${item.owner_name}</span>
                     <span class="badge">${item.status}</span>
+                </div>
+                <div style="margin-top:7px;color:var(--muted);font-size:12px;">
+                    Комиссия: ${FEE_PER_PARTICIPANT_TON} TON с каждого участника
                 </div>
                 <div class="row" style="margin-top:8px;">
                     <button class="success" onclick="requestExchange(${idx})">Предложить обмен</button>
@@ -419,15 +421,37 @@
             div.innerHTML = `
                 <div class="listing-top">
                     <b>Обмен #${order.id}</b>
-                    <span class="${order.status === "created" ? "status-ok" : "status-bad"}">${order.status}</span>
+                    <span class="${order.status === "completed" ? "status-ok" : "status-bad"}">${order.status}</span>
                 </div>
                 <div>Отдаешь: ${escapeHtml(order.offered_gift)}</div>
                 <div>Хочешь получить: ${escapeHtml(order.requested_gift)}</div>
                 <div>Владелец оффера: ${escapeHtml(order.owner_name)}</div>
+                <div>Твоя комиссия: ${order.fee_per_user_ton} TON</div>
+                <div>Общая комиссия сделки: ${order.total_fee_ton} TON</div>
                 <div style="color:var(--muted);margin-top:4px;">${new Date(order.created_at).toLocaleString()}</div>
+                <div class="row" style="margin-top:8px;">
+                    ${renderExchangeActions(order)}
+                </div>
             `;
             root.appendChild(div);
         });
+    }
+
+    function renderExchangeActions(order) {
+        const isOwner = Number(order.owner_id) === Number(userId);
+        if (order.status === "pending_owner_reply" && isOwner) {
+            return `
+                <button onclick="changeExchangeStatus(${order.id}, 'accept')">Принять</button>
+                <button onclick="changeExchangeStatus(${order.id}, 'reject')">Отклонить</button>
+            `;
+        }
+        if (order.status === "accepted") {
+            return `<button onclick="changeExchangeStatus(${order.id}, 'to_escrow')">Передать в склад</button>`;
+        }
+        if (order.status === "in_escrow") {
+            return `<button class="success" onclick="changeExchangeStatus(${order.id}, 'complete')">Завершить</button>`;
+        }
+        return "";
     }
 
     function prefillGift(index) {
@@ -438,7 +462,7 @@
         softHaptic("light");
     }
 
-    function createListingFromForm() {
+    async function createListingFromForm() {
         const giftName = document.getElementById("gift-select").value;
         const wantedGift = document.getElementById("wanted-gift-input").value.trim();
 
@@ -448,54 +472,76 @@
         const exists = state.listings.some((x) => x.gift_name === giftName && x.status === "active");
         if (exists) return tg?.showAlert("Этот подарок уже опубликован в витрине");
 
-        const listing = {
-            id: `lst_${Date.now()}`,
-            gift_name: giftName,
-            wanted_gift: wantedGift,
-            seller_id: userId,
-            seller_name: userLabel,
-            status: "active",
-            created_at: new Date().toISOString()
-        };
-
-        state.listings.unshift(listing);
-        saveListings();
-        renderMarket();
-        tg?.showPopup({
-            title: "Оффер опубликован",
-            message: `Отдаешь "${giftName}", хочешь "${wantedGift}"`,
-            buttons: [{ type: "ok" }]
-        });
+        try {
+            const response = await fetch(`${BASE_URL}/offers`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    owner_id: userId,
+                    owner_name: userLabel,
+                    gift_name: giftName,
+                    wanted_gift: wantedGift
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "cannot create offer");
+            await loadOffers();
+            tg?.showPopup({
+                title: "Оффер опубликован",
+                message: `Отдаешь "${giftName}", хочешь "${wantedGift}"`,
+                buttons: [{ type: "ok" }]
+            });
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert("Не удалось создать оффер");
+        }
     }
 
-    function requestExchange(index) {
+    async function requestExchange(index) {
         const listing = state.listings[index];
         if (!listing || listing.status !== "active") return;
-        if (listing.seller_id === userId) {
+        if (listing.owner_id === userId) {
             return tg?.showAlert("Нельзя отправить обмен самому себе");
         }
 
-        const order = {
-            id: `exc_${Date.now()}`,
-            offer_id: listing.id,
-            offered_gift: listing.wanted_gift,
-            requested_gift: listing.gift_name,
-            requester_id: userId,
-            owner_id: listing.seller_id,
-            owner_name: listing.seller_name,
-            status: "pending_owner_reply",
-            created_at: new Date().toISOString()
-        };
+        try {
+            const response = await fetch(`${BASE_URL}/exchanges`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    offer_id: listing.id,
+                    requester_id: userId,
+                    requester_name: userLabel,
+                    fee_per_user_ton: FEE_PER_PARTICIPANT_TON
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "cannot create exchange");
+            await loadMyExchanges();
+            tg?.sendData(JSON.stringify({ action: "create_exchange_request", exchange: data.exchange }));
+            tg?.showAlert(`Запрос отправлен: ${data.exchange.id}\nКомиссия: ${data.exchange.fee_per_user_ton} TON с каждого`);
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert("Не удалось отправить запрос обмена");
+        }
+    }
 
-        state.orders.unshift(order);
-        saveListings();
-        saveOrders();
-        renderMarket();
-        renderOrders();
-
-        // Отправка события в бота (можно обрабатывать в backend через WebAppData)
-        tg?.sendData(JSON.stringify({ action: "create_exchange_request", order }));
-        tg?.showAlert(`Запрос на обмен отправлен: ${order.id}`);
+    async function changeExchangeStatus(exchangeId, action) {
+        try {
+            const response = await fetch(`${BASE_URL}/exchanges/${exchangeId}/status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ actor_id: userId, action })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "cannot update exchange");
+            await loadOffers();
+            await loadMyExchanges();
+            tg?.showAlert(`Статус обновлен: ${data.exchange.status}`);
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert(`Ошибка: ${err.message}`);
+        }
     }
 
     async function loadInventory() {
@@ -511,32 +557,28 @@
         renderInventory();
     }
 
-    function loadListings() {
+    async function loadOffers() {
         try {
-            const raw = localStorage.getItem(LS_LISTINGS);
-            state.listings = raw ? JSON.parse(raw) : [];
+            const response = await fetch(`${BASE_URL}/offers`);
+            if (!response.ok) throw new Error("offers API unavailable");
+            const data = await response.json();
+            state.listings = Array.isArray(data.offers) ? data.offers : [];
         } catch {
             state.listings = [];
         }
         renderMarket();
     }
 
-    function loadOrders() {
+    async function loadMyExchanges() {
         try {
-            const raw = localStorage.getItem(LS_ORDERS);
-            state.orders = raw ? JSON.parse(raw) : [];
+            const response = await fetch(`${BASE_URL}/exchanges?user_id=${userId}`);
+            if (!response.ok) throw new Error("exchanges API unavailable");
+            const data = await response.json();
+            state.orders = Array.isArray(data.exchanges) ? data.exchanges : [];
         } catch {
             state.orders = [];
         }
         renderOrders();
-    }
-
-    function saveListings() {
-        localStorage.setItem(LS_LISTINGS, JSON.stringify(state.listings));
-    }
-
-    function saveOrders() {
-        localStorage.setItem(LS_ORDERS, JSON.stringify(state.orders));
     }
 
     function escapeHtml(value) {
@@ -548,8 +590,8 @@
             .replaceAll("'", "&#39;");
     }
 
-    loadListings();
-    loadOrders();
+    loadOffers();
+    loadMyExchanges();
     loadInventory();
 </script>
 </body>
