@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GiftMatch Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --surface: #171a21;
+            --card: #1d212b;
+            --line: #2a2f3d;
+            --text: #edf1f8;
+            --muted: #8d97ab;
+            --primary: #4aa3ff;
+            --green: #42c98f;
+            --danger: #ff5b6e;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .app {
+            padding-bottom: 82px;
+        }
+
+        .top {
+            padding: 18px 16px 14px;
+            border-bottom: 1px solid var(--line);
+            background: linear-gradient(180deg, #161a22, #0f1115);
+        }
+
+        .user-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #2a3346;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .title {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .subtitle {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 14px 12px;
+        }
+
+        .tab-content.active { display: block; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .card-title {
+            margin: 0 0 10px;
+            font-size: 13px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .gift-item {
+            border: 1px solid var(--line);
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .gift-emoji {
+            font-size: 24px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .gift-name {
+            font-size: 13px;
+            margin: 0 0 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+        }
+
+        input, select, button {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: var(--surface);
+            color: var(--text);
+            padding: 10px 11px;
+            font-size: 13px;
+        }
+
+        button {
+            cursor: pointer;
+            background: #223149;
+            border-color: #2e4366;
+        }
+
+        button.primary {
+            background: var(--primary);
+            border-color: #6eb5ff;
+            color: #051a31;
+            font-weight: 700;
+        }
+
+        button.success {
+            background: var(--green);
+            border-color: #73deb1;
+            color: #05291b;
+            font-weight: 700;
+        }
+
+        .listing {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px;
+            background: var(--surface);
+            margin-bottom: 8px;
+        }
+
+        .listing-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .price {
+            font-weight: 700;
+            color: #b8d8ff;
+        }
+
+        .badge {
+            font-size: 11px;
+            color: #cfd7e6;
+            padding: 3px 8px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+        }
+
+        .empty {
+            color: var(--muted);
+            text-align: center;
+            font-size: 13px;
+            padding: 10px 6px;
+        }
+
+        .status-ok { color: var(--green); }
+        .status-bad { color: var(--danger); }
+
+        .tab-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(14, 16, 21, 0.97);
+            border-top: 1px solid var(--line);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            padding: 7px 6px 10px;
+        }
+
+        .tab-item {
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 5px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .tab-item.active {
+            color: var(--text);
+            background: #232938;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="top">
+        <div class="user-row">
+            <div id="avatar" class="avatar">?</div>
+            <div>
+                <h1 id="user-name" class="title">Пользователь</h1>
+                <p class="subtitle">GiftMatch • Escrow Marketplace</p>
+            </div>
+        </div>
+    </header>
+
+    <section id="tab-inventory" class="tab-content active">
+        <div class="card">
+            <h3 class="card-title">Мой склад</h3>
+            <div id="inventory-grid" class="inventory-grid">
+                <div class="empty">Загрузка склада...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Выставить лот</h3>
+            <div class="row">
+                <select id="gift-select">
+                    <option value="">Выбери подарок</option>
+                </select>
+                <select id="currency-select">
+                    <option value="USDT">USDT</option>
+                    <option value="TON">TON</option>
+                    <option value="RUB">RUB</option>
+                </select>
+            </div>
+            <div class="row" style="margin-top:8px;">
+                <input id="price-input" type="number" step="0.01" min="0" placeholder="Цена">
+                <button id="create-listing-btn" class="primary">Создать</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="tab-market" class="tab-content">
+        <div class="card">
+            <h3 class="card-title">Маркет лотов</h3>
+            <div id="market-list"></div>
+        </div>
+    </section>
+
+    <section id="tab-orders" class="tab-content">
+        <div class="card">
+            <h3 class="card-title">Мои сделки</h3>
+            <div id="orders-list"></div>
+        </div>
+    </section>
+</div>
+
+<nav class="tab-bar">
+    <button class="tab-item active" data-tab="inventory">Склад</button>
+    <button class="tab-item" data-tab="market">Маркет</button>
+    <button class="tab-item" data-tab="orders">Сделки</button>
+</nav>
+
+<script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+        tg.expand();
+        tg.ready();
+    }
+
+    const user = tg?.initDataUnsafe?.user || null;
+    const userId = user?.id || 0;
+    const userLabel = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Гость";
+
+    const BASE_URL = "http://127.0.0.1:8080";
+    const LS_LISTINGS = `giftmatch_listings_${userId}`;
+    const LS_ORDERS = `giftmatch_orders_${userId}`;
+
+    const state = {
+        gifts: [],
+        listings: [],
+        orders: []
+    };
+
+    function softHaptic(style = "light") {
+        try {
+            tg?.HapticFeedback?.impactOccurred(style);
+        } catch (err) {
+            console.debug("Haptic unavailable:", err);
+        }
+    }
+
+    document.getElementById("user-name").textContent = userLabel;
+    document.getElementById("avatar").textContent = (user?.first_name?.[0] || "G").toUpperCase();
+
+    // Global mobile haptic for interactive controls
+    document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest("button, .tab-item, [onclick], select")) {
+            softHaptic("light");
+        }
+    });
+
+    document.querySelectorAll(".tab-item").forEach((btn) => {
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab, btn));
+    });
+
+    document.getElementById("create-listing-btn").addEventListener("click", createListingFromForm);
+
+    function switchTab(tab, el) {
+        document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+        el.classList.add("active");
+        document.getElementById(`tab-${tab}`).classList.add("active");
+        softHaptic("light");
+    }
+
+    function renderInventory() {
+        const grid = document.getElementById("inventory-grid");
+        const select = document.getElementById("gift-select");
+        select.innerHTML = '<option value="">Выбери подарок</option>';
+
+        if (!state.gifts.length) {
+            grid.innerHTML = '<div class="empty" style="grid-column:span 2;">Склад пуст. Отправь подарок на аккаунт-склад через бота.</div>';
+            return;
+        }
+
+        grid.innerHTML = "";
+        state.gifts.forEach((gift, idx) => {
+            const card = document.createElement("div");
+            card.className = "gift-item";
+            card.innerHTML = `
+                <span class="gift-emoji">🎁</span>
+                <p class="gift-name">${escapeHtml(gift)}</p>
+                <button onclick="prefillGift(${idx})">Продать</button>
+            `;
+            grid.appendChild(card);
+
+            const option = document.createElement("option");
+            option.value = gift;
+            option.textContent = gift;
+            select.appendChild(option);
+        });
+    }
+
+    function renderMarket() {
+        const root = document.getElementById("market-list");
+        if (!state.listings.length) {
+            root.innerHTML = '<div class="empty">Пока нет активных лотов.</div>';
+            return;
+        }
+
+        root.innerHTML = "";
+        state.listings.forEach((item, idx) => {
+            const div = document.createElement("div");
+            div.className = "listing";
+            div.innerHTML = `
+                <div class="listing-top">
+                    <div><b>🎁 ${escapeHtml(item.gift_name)}</b></div>
+                    <div class="price">${item.price} ${item.currency}</div>
+                </div>
+                <div class="row">
+                    <span class="badge">seller: ${item.seller_name}</span>
+                    <span class="badge">${item.status}</span>
+                </div>
+                <div class="row" style="margin-top:8px;">
+                    <button class="success" onclick="buyListing(${idx})">Купить</button>
+                </div>
+            `;
+            root.appendChild(div);
+        });
+    }
+
+    function renderOrders() {
+        const root = document.getElementById("orders-list");
+        if (!state.orders.length) {
+            root.innerHTML = '<div class="empty">Сделок пока нет.</div>';
+            return;
+        }
+
+        root.innerHTML = "";
+        state.orders.forEach((order) => {
+            const div = document.createElement("div");
+            div.className = "listing";
+            div.innerHTML = `
+                <div class="listing-top">
+                    <b>Сделка #${order.id}</b>
+                    <span class="${order.status === "created" ? "status-ok" : "status-bad"}">${order.status}</span>
+                </div>
+                <div>Подарок: ${escapeHtml(order.gift_name)}</div>
+                <div>Сумма: ${order.amount} ${order.currency}</div>
+                <div style="color:var(--muted);margin-top:4px;">${new Date(order.created_at).toLocaleString()}</div>
+            `;
+            root.appendChild(div);
+        });
+    }
+
+    function prefillGift(index) {
+        const gift = state.gifts[index];
+        if (!gift) return;
+        document.getElementById("gift-select").value = gift;
+        tg?.HapticFeedback?.selectionChanged?.();
+        softHaptic("light");
+    }
+
+    function createListingFromForm() {
+        const giftName = document.getElementById("gift-select").value;
+        const price = Number(document.getElementById("price-input").value);
+        const currency = document.getElementById("currency-select").value;
+
+        if (!giftName) return tg?.showAlert("Выбери подарок для лота");
+        if (!price || price <= 0) return tg?.showAlert("Укажи корректную цену");
+
+        const exists = state.listings.some((x) => x.gift_name === giftName && x.status === "active");
+        if (exists) return tg?.showAlert("Этот подарок уже выставлен");
+
+        const listing = {
+            id: `lst_${Date.now()}`,
+            gift_name: giftName,
+            price: price.toFixed(2),
+            currency,
+            seller_id: userId,
+            seller_name: userLabel,
+            status: "active",
+            created_at: new Date().toISOString()
+        };
+
+        state.listings.unshift(listing);
+        saveListings();
+        renderMarket();
+        tg?.showPopup({
+            title: "Лот создан",
+            message: `Подарок "${giftName}" выставлен за ${listing.price} ${currency}`,
+            buttons: [{ type: "ok" }]
+        });
+    }
+
+    function buyListing(index) {
+        const listing = state.listings[index];
+        if (!listing || listing.status !== "active") return;
+
+        listing.status = "reserved";
+        const order = {
+            id: `ord_${Date.now()}`,
+            listing_id: listing.id,
+            gift_name: listing.gift_name,
+            amount: listing.price,
+            currency: listing.currency,
+            buyer_id: userId,
+            seller_id: listing.seller_id,
+            status: "created",
+            created_at: new Date().toISOString()
+        };
+
+        state.orders.unshift(order);
+        saveListings();
+        saveOrders();
+        renderMarket();
+        renderOrders();
+
+        // Отправка события в бота (можно обрабатывать в backend через WebAppData)
+        tg?.sendData(JSON.stringify({ action: "create_order", order }));
+        tg?.showAlert(`Сделка создана: ${order.id}`);
+    }
+
+    async function loadInventory() {
+        try {
+            const response = await fetch(`${BASE_URL}/get_gifts?user_id=${userId}`);
+            if (!response.ok) throw new Error("Inventory API unavailable");
+            const data = await response.json();
+            state.gifts = Array.isArray(data.gifts) ? data.gifts : [];
+        } catch (err) {
+            console.error(err);
+            state.gifts = [];
+        }
+        renderInventory();
+    }
+
+    function loadListings() {
+        try {
+            const raw = localStorage.getItem(LS_LISTINGS);
+            state.listings = raw ? JSON.parse(raw) : [];
+        } catch {
+            state.listings = [];
+        }
+        renderMarket();
+    }
+
+    function loadOrders() {
+        try {
+            const raw = localStorage.getItem(LS_ORDERS);
+            state.orders = raw ? JSON.parse(raw) : [];
+        } catch {
+            state.orders = [];
+        }
+        renderOrders();
+    }
+
+    function saveListings() {
+        localStorage.setItem(LS_LISTINGS, JSON.stringify(state.listings));
+    }
+
+    function saveOrders() {
+        localStorage.setItem(LS_ORDERS, JSON.stringify(state.orders));
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    loadListings();
+    loadOrders();
+    loadInventory();
+</script>
+</body>
+</html>
