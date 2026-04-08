@@ -225,7 +225,7 @@
             <div id="avatar" class="avatar">?</div>
             <div>
                 <h1 id="user-name" class="title">Пользователь</h1>
-                <p class="subtitle">GiftMatch • Escrow Marketplace</p>
+                <p class="subtitle">GiftMatch • Витрина обмена</p>
             </div>
         </div>
     </header>
@@ -239,27 +239,22 @@
         </div>
 
         <div class="card">
-            <h3 class="card-title">Выставить лот</h3>
+            <h3 class="card-title">Создать предложение обмена</h3>
             <div class="row">
                 <select id="gift-select">
-                    <option value="">Выбери подарок</option>
-                </select>
-                <select id="currency-select">
-                    <option value="USDT">USDT</option>
-                    <option value="TON">TON</option>
-                    <option value="RUB">RUB</option>
+                    <option value="">Что отдаю</option>
                 </select>
             </div>
             <div class="row" style="margin-top:8px;">
-                <input id="price-input" type="number" step="0.01" min="0" placeholder="Цена">
-                <button id="create-listing-btn" class="primary">Создать</button>
+                <input id="wanted-gift-input" type="text" maxlength="64" placeholder="Что хочу получить">
+                <button id="create-listing-btn" class="primary">Опубликовать</button>
             </div>
         </div>
     </section>
 
     <section id="tab-market" class="tab-content">
         <div class="card">
-            <h3 class="card-title">Маркет лотов</h3>
+            <h3 class="card-title">Витрина предложений</h3>
             <div id="market-list"></div>
         </div>
     </section>
@@ -274,8 +269,8 @@
 
 <nav class="tab-bar">
     <button class="tab-item active" data-tab="inventory">Склад</button>
-    <button class="tab-item" data-tab="market">Маркет</button>
-    <button class="tab-item" data-tab="orders">Сделки</button>
+    <button class="tab-item" data-tab="market">Витрина</button>
+    <button class="tab-item" data-tab="orders">Обмены</button>
 </nav>
 
 <script>
@@ -290,8 +285,8 @@
     const userLabel = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Гость";
 
     const BASE_URL = "http://127.0.0.1:8080";
-    const LS_LISTINGS = `giftmatch_listings_${userId}`;
-    const LS_ORDERS = `giftmatch_orders_${userId}`;
+    const LS_LISTINGS = "giftmatch_exchange_offers_global";
+    const LS_ORDERS = `giftmatch_exchange_requests_${userId}`;
 
     const state = {
         gifts: [],
@@ -350,7 +345,7 @@
             card.innerHTML = `
                 <span class="gift-emoji">🎁</span>
                 <p class="gift-name">${escapeHtml(gift)}</p>
-                <button onclick="prefillGift(${idx})">Продать</button>
+                <button onclick="prefillGift(${idx})">Выбрать</button>
             `;
             grid.appendChild(card);
 
@@ -364,7 +359,7 @@
     function renderMarket() {
         const root = document.getElementById("market-list");
         if (!state.listings.length) {
-            root.innerHTML = '<div class="empty">Пока нет активных лотов.</div>';
+            root.innerHTML = '<div class="empty">Пока нет активных предложений.</div>';
             return;
         }
 
@@ -374,15 +369,15 @@
             div.className = "listing";
             div.innerHTML = `
                 <div class="listing-top">
-                    <div><b>🎁 ${escapeHtml(item.gift_name)}</b></div>
-                    <div class="price">${item.price} ${item.currency}</div>
+                    <div><b>🎁 Отдает: ${escapeHtml(item.gift_name)}</b></div>
+                    <div class="price">Хочет: ${escapeHtml(item.wanted_gift)}</div>
                 </div>
                 <div class="row">
-                    <span class="badge">seller: ${item.seller_name}</span>
+                    <span class="badge">user: ${item.seller_name}</span>
                     <span class="badge">${item.status}</span>
                 </div>
                 <div class="row" style="margin-top:8px;">
-                    <button class="success" onclick="buyListing(${idx})">Купить</button>
+                    <button class="success" onclick="requestExchange(${idx})">Предложить обмен</button>
                 </div>
             `;
             root.appendChild(div);
@@ -392,7 +387,7 @@
     function renderOrders() {
         const root = document.getElementById("orders-list");
         if (!state.orders.length) {
-            root.innerHTML = '<div class="empty">Сделок пока нет.</div>';
+            root.innerHTML = '<div class="empty">Запросов на обмен пока нет.</div>';
             return;
         }
 
@@ -402,11 +397,12 @@
             div.className = "listing";
             div.innerHTML = `
                 <div class="listing-top">
-                    <b>Сделка #${order.id}</b>
+                    <b>Обмен #${order.id}</b>
                     <span class="${order.status === "created" ? "status-ok" : "status-bad"}">${order.status}</span>
                 </div>
-                <div>Подарок: ${escapeHtml(order.gift_name)}</div>
-                <div>Сумма: ${order.amount} ${order.currency}</div>
+                <div>Отдаешь: ${escapeHtml(order.offered_gift)}</div>
+                <div>Хочешь получить: ${escapeHtml(order.requested_gift)}</div>
+                <div>Владелец оффера: ${escapeHtml(order.owner_name)}</div>
                 <div style="color:var(--muted);margin-top:4px;">${new Date(order.created_at).toLocaleString()}</div>
             `;
             root.appendChild(div);
@@ -423,20 +419,18 @@
 
     function createListingFromForm() {
         const giftName = document.getElementById("gift-select").value;
-        const price = Number(document.getElementById("price-input").value);
-        const currency = document.getElementById("currency-select").value;
+        const wantedGift = document.getElementById("wanted-gift-input").value.trim();
 
-        if (!giftName) return tg?.showAlert("Выбери подарок для лота");
-        if (!price || price <= 0) return tg?.showAlert("Укажи корректную цену");
+        if (!giftName) return tg?.showAlert("Выбери подарок, который отдаешь");
+        if (!wantedGift) return tg?.showAlert("Укажи, что хочешь получить в обмен");
 
         const exists = state.listings.some((x) => x.gift_name === giftName && x.status === "active");
-        if (exists) return tg?.showAlert("Этот подарок уже выставлен");
+        if (exists) return tg?.showAlert("Этот подарок уже опубликован в витрине");
 
         const listing = {
             id: `lst_${Date.now()}`,
             gift_name: giftName,
-            price: price.toFixed(2),
-            currency,
+            wanted_gift: wantedGift,
             seller_id: userId,
             seller_name: userLabel,
             status: "active",
@@ -447,26 +441,28 @@
         saveListings();
         renderMarket();
         tg?.showPopup({
-            title: "Лот создан",
-            message: `Подарок "${giftName}" выставлен за ${listing.price} ${currency}`,
+            title: "Оффер опубликован",
+            message: `Отдаешь "${giftName}", хочешь "${wantedGift}"`,
             buttons: [{ type: "ok" }]
         });
     }
 
-    function buyListing(index) {
+    function requestExchange(index) {
         const listing = state.listings[index];
         if (!listing || listing.status !== "active") return;
+        if (listing.seller_id === userId) {
+            return tg?.showAlert("Нельзя отправить обмен самому себе");
+        }
 
-        listing.status = "reserved";
         const order = {
-            id: `ord_${Date.now()}`,
-            listing_id: listing.id,
-            gift_name: listing.gift_name,
-            amount: listing.price,
-            currency: listing.currency,
-            buyer_id: userId,
-            seller_id: listing.seller_id,
-            status: "created",
+            id: `exc_${Date.now()}`,
+            offer_id: listing.id,
+            offered_gift: listing.wanted_gift,
+            requested_gift: listing.gift_name,
+            requester_id: userId,
+            owner_id: listing.seller_id,
+            owner_name: listing.seller_name,
+            status: "pending_owner_reply",
             created_at: new Date().toISOString()
         };
 
@@ -477,8 +473,8 @@
         renderOrders();
 
         // Отправка события в бота (можно обрабатывать в backend через WebAppData)
-        tg?.sendData(JSON.stringify({ action: "create_order", order }));
-        tg?.showAlert(`Сделка создана: ${order.id}`);
+        tg?.sendData(JSON.stringify({ action: "create_exchange_request", order }));
+        tg?.showAlert(`Запрос на обмен отправлен: ${order.id}`);
     }
 
     async function loadInventory() {
