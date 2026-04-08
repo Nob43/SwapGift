@@ -7,15 +7,17 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: #0f1115;
-            --surface: #171a21;
-            --card: #1d212b;
-            --line: #2a2f3d;
-            --text: #edf1f8;
-            --muted: #8d97ab;
-            --primary: #4aa3ff;
-            --green: #42c98f;
-            --danger: #ff5b6e;
+            --bg: #0b0f19;
+            --bg2: #111827;
+            --surface: #141b2d;
+            --card: #151e33;
+            --line: #273453;
+            --text: #edf3ff;
+            --muted: #9aa8c7;
+            --primary: #5bb4ff;
+            --primary-2: #7a8cff;
+            --green: #36d39a;
+            --danger: #ff6478;
         }
 
         * { box-sizing: border-box; }
@@ -24,7 +26,9 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg);
+            background: radial-gradient(1200px 700px at 10% -10%, #1a2850 0%, transparent 55%),
+                        radial-gradient(900px 500px at 90% -15%, #20335c 0%, transparent 50%),
+                        linear-gradient(180deg, var(--bg2), var(--bg));
             color: var(--text);
             min-height: 100vh;
         }
@@ -35,8 +39,9 @@
 
         .top {
             padding: 18px 16px 14px;
-            border-bottom: 1px solid var(--line);
-            background: linear-gradient(180deg, #161a22, #0f1115);
+            border-bottom: 1px solid rgba(125, 147, 199, 0.16);
+            background: linear-gradient(180deg, rgba(25, 34, 56, 0.82), rgba(11, 15, 25, 0.55));
+            backdrop-filter: blur(8px);
         }
 
         .user-row {
@@ -49,11 +54,13 @@
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background: #2a3346;
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            color: #061427;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 600;
+            font-weight: 700;
+            box-shadow: 0 8px 22px rgba(72, 136, 255, 0.35);
         }
 
         .title {
@@ -75,19 +82,20 @@
         .tab-content.active { display: block; }
 
         .card {
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 12px;
-            margin-bottom: 10px;
+            background: linear-gradient(180deg, rgba(24, 35, 60, 0.84), rgba(21, 30, 51, 0.9));
+            border: 1px solid rgba(121, 146, 201, 0.22);
+            border-radius: 16px;
+            padding: 13px;
+            margin-bottom: 12px;
+            box-shadow: 0 12px 24px rgba(1, 7, 18, 0.28);
         }
 
         .card-title {
             margin: 0 0 10px;
-            font-size: 13px;
+            font-size: 12px;
             color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
         }
 
         .inventory-grid {
@@ -97,9 +105,9 @@
         }
 
         .gift-item {
-            border: 1px solid var(--line);
-            background: var(--surface);
-            border-radius: 12px;
+            border: 1px solid rgba(124, 149, 206, 0.24);
+            background: linear-gradient(180deg, rgba(21, 31, 51, 0.95), rgba(17, 25, 40, 0.95));
+            border-radius: 14px;
             padding: 10px;
         }
 
@@ -124,39 +132,49 @@
 
         input, select, button {
             width: 100%;
-            border-radius: 10px;
-            border: 1px solid var(--line);
+            border-radius: 12px;
+            border: 1px solid rgba(121, 146, 201, 0.35);
             background: var(--surface);
             color: var(--text);
             padding: 10px 11px;
             font-size: 13px;
+            outline: none;
+        }
+
+        input::placeholder { color: #8d9bc0; }
+        input:focus, select:focus {
+            border-color: rgba(102, 177, 255, 0.95);
+            box-shadow: 0 0 0 3px rgba(91, 180, 255, 0.15);
         }
 
         button {
             cursor: pointer;
-            background: #223149;
-            border-color: #2e4366;
+            background: linear-gradient(180deg, #243a63, #223149);
+            border-color: rgba(106, 145, 222, 0.5);
+            transition: transform 0.08s ease, filter 0.15s ease;
         }
+        button:active { transform: translateY(1px) scale(0.99); }
+        button:hover { filter: brightness(1.06); }
 
         button.primary {
-            background: var(--primary);
-            border-color: #6eb5ff;
-            color: #051a31;
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            border-color: rgba(165, 197, 255, 0.82);
+            color: #041427;
             font-weight: 700;
         }
 
         button.success {
-            background: var(--green);
-            border-color: #73deb1;
+            background: linear-gradient(135deg, var(--green), #6ae9ba);
+            border-color: #93f1cf;
             color: #05291b;
             font-weight: 700;
         }
 
         .listing {
-            border: 1px solid var(--line);
-            border-radius: 12px;
+            border: 1px solid rgba(125, 149, 202, 0.24);
+            border-radius: 14px;
             padding: 10px;
-            background: var(--surface);
+            background: linear-gradient(180deg, rgba(22, 30, 50, 0.94), rgba(18, 26, 43, 0.96));
             margin-bottom: 8px;
         }
 
@@ -169,15 +187,16 @@
 
         .price {
             font-weight: 700;
-            color: #b8d8ff;
+            color: #c7ddff;
         }
 
         .badge {
             font-size: 11px;
-            color: #cfd7e6;
+            color: #d6e0f4;
             padding: 3px 8px;
-            border: 1px solid var(--line);
+            border: 1px solid rgba(125, 149, 202, 0.35);
             border-radius: 999px;
+            background: rgba(108, 138, 199, 0.12);
         }
 
         .empty {
@@ -195,8 +214,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(14, 16, 21, 0.97);
-            border-top: 1px solid var(--line);
+            background: rgba(9, 13, 23, 0.88);
+            border-top: 1px solid rgba(121, 146, 201, 0.2);
+            backdrop-filter: blur(12px);
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 2px;
@@ -207,14 +227,15 @@
             border: 0;
             background: transparent;
             color: var(--muted);
-            padding: 8px 5px;
-            border-radius: 10px;
+            padding: 10px 5px;
+            border-radius: 12px;
             font-size: 12px;
         }
 
         .tab-item.active {
             color: var(--text);
-            background: #232938;
+            background: linear-gradient(180deg, rgba(94, 148, 255, 0.25), rgba(95, 124, 255, 0.19));
+            border: 1px solid rgba(130, 176, 255, 0.35);
         }
     </style>
 </head>
@@ -261,7 +282,7 @@
 
     <section id="tab-orders" class="tab-content">
         <div class="card">
-            <h3 class="card-title">Мои сделки</h3>
+            <h3 class="card-title">Мои обмены</h3>
             <div id="orders-list"></div>
         </div>
     </section>
