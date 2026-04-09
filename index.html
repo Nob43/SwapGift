@@ -410,6 +410,7 @@
                 </div>
                 <div class="row" style="margin-top:8px;">
                     <button class="success" onclick="requestExchange(${idx})">Предложить обмен</button>
+                    ${Number(item.owner_id) === Number(userId) ? `<button onclick="removeOffer(${item.id})">Убрать</button>` : ""}
                 </div>
             `;
             root.appendChild(div);
@@ -532,6 +533,23 @@
         } catch (err) {
             console.error(err);
             tg?.showAlert("Не удалось отправить запрос обмена");
+        }
+    }
+
+    async function removeOffer(offerId) {
+        try {
+            const response = await fetch(`${BASE_URL}/offers/${offerId}/remove`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ actor_id: userId })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "cannot remove offer");
+            await loadOffers();
+            tg?.showAlert("Предложение убрано с витрины");
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert(`Не удалось убрать оффер: ${err.message}`);
         }
     }
 
