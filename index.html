@@ -314,6 +314,14 @@
         orders: []
     };
 
+    const GIFT_PRESETS = [
+        { match: /star.?gift.?unique/i, icon: "💎", title: "Уникальный Star Gift" },
+        { match: /star.?gift/i, icon: "⭐", title: "Star Gift" },
+        { match: /unique/i, icon: "💠", title: "Уникальный подарок" },
+        { match: /premium/i, icon: "👑", title: "Premium подарок" },
+        { match: /gift/i, icon: "🎁", title: "Подарок Telegram" }
+    ];
+
     function softHaptic(style = "light") {
         try {
             tg?.HapticFeedback?.impactOccurred(style);
@@ -360,18 +368,19 @@
 
         grid.innerHTML = "";
         state.gifts.forEach((gift, idx) => {
+            const pretty = prettifyGift(gift);
             const card = document.createElement("div");
             card.className = "gift-item";
             card.innerHTML = `
-                <span class="gift-emoji">🎁</span>
-                <p class="gift-name">${escapeHtml(gift)}</p>
+                <span class="gift-emoji">${pretty.icon}</span>
+                <p class="gift-name">${escapeHtml(pretty.title)}</p>
                 <button onclick="prefillGift(${idx})">Выбрать</button>
             `;
             grid.appendChild(card);
 
             const option = document.createElement("option");
             option.value = gift;
-            option.textContent = gift;
+            option.textContent = `${pretty.icon} ${pretty.title}`;
             select.appendChild(option);
         });
     }
@@ -588,6 +597,27 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#39;");
+    }
+
+    function prettifyGift(rawGiftName) {
+        const raw = String(rawGiftName || "").trim();
+        const normalized = raw
+            .replaceAll("_", " ")
+            .replaceAll("-", " ")
+            .replace("MessageAction", "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        for (const preset of GIFT_PRESETS) {
+            if (preset.match.test(raw) || preset.match.test(normalized)) {
+                // If payload contains a readable title, keep it.
+                const readable = normalized && normalized.length > 3 ? normalized : preset.title;
+                return { icon: preset.icon, title: readable };
+            }
+        }
+
+        if (!normalized) return { icon: "🎁", title: "Подарок Telegram" };
+        return { icon: "🎁", title: normalized };
     }
 
     loadOffers();
