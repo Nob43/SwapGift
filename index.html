@@ -111,10 +111,21 @@
             padding: 10px;
         }
 
-        .gift-emoji {
-            font-size: 24px;
+        .gift-preview {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            border: 1px solid rgba(139, 166, 224, 0.34);
+            background: rgba(11, 17, 30, 0.62);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin-bottom: 8px;
-            display: block;
+            overflow: hidden;
+        }
+
+        .gift-preview-fallback {
+            font-size: 24px;
         }
 
         .gift-name {
@@ -315,11 +326,11 @@
     };
 
     const GIFT_PRESETS = [
-        { match: /star.?gift.?unique/i, icon: "💎", title: "Уникальный Star Gift" },
+        { match: /star.?gift.?unique/i, icon: "💎", title: "Уникальный Telegram Gift" },
         { match: /star.?gift/i, icon: "⭐", title: "Star Gift" },
+        { match: /premium/i, icon: "👑", title: "Premium Gift" },
         { match: /unique/i, icon: "💠", title: "Уникальный подарок" },
-        { match: /premium/i, icon: "👑", title: "Premium подарок" },
-        { match: /gift/i, icon: "🎁", title: "Подарок Telegram" }
+        { match: /gift/i, icon: "🎁", title: "Telegram Gift" }
     ];
 
     function softHaptic(style = "light") {
@@ -372,7 +383,9 @@
             const card = document.createElement("div");
             card.className = "gift-item";
             card.innerHTML = `
-                <span class="gift-emoji">${pretty.icon}</span>
+                <span class="gift-preview">
+                    <span class="gift-preview-fallback">${pretty.icon}</span>
+                </span>
                 <p class="gift-name">${escapeHtml(pretty.title)}</p>
                 <button onclick="prefillGift(${idx})">Выбрать</button>
             `;
@@ -394,12 +407,14 @@
 
         root.innerHTML = "";
         state.listings.forEach((item, idx) => {
+            const give = prettifyGift(item.gift_name);
+            const want = prettifyGift(item.wanted_gift);
             const div = document.createElement("div");
             div.className = "listing";
             div.innerHTML = `
                 <div class="listing-top">
-                    <div><b>🎁 Отдает: ${escapeHtml(item.gift_name)}</b></div>
-                    <div class="price">Хочет: ${escapeHtml(item.wanted_gift)}</div>
+                    <div><b>${give.icon} Отдает: ${escapeHtml(give.title)}</b></div>
+                    <div class="price">${want.icon} Хочет: ${escapeHtml(want.title)}</div>
                 </div>
                 <div class="row">
                     <span class="badge">user: ${item.owner_name}</span>
@@ -426,6 +441,8 @@
 
         root.innerHTML = "";
         state.orders.forEach((order) => {
+            const offered = prettifyGift(order.offered_gift);
+            const requested = prettifyGift(order.requested_gift);
             const div = document.createElement("div");
             div.className = "listing";
             div.innerHTML = `
@@ -433,8 +450,8 @@
                     <b>Обмен #${order.id}</b>
                     <span class="${order.status === "completed" ? "status-ok" : "status-bad"}">${order.status}</span>
                 </div>
-                <div>Отдаешь: ${escapeHtml(order.offered_gift)}</div>
-                <div>Хочешь получить: ${escapeHtml(order.requested_gift)}</div>
+                <div>${offered.icon} Отдаешь: ${escapeHtml(offered.title)}</div>
+                <div>${requested.icon} Хочешь получить: ${escapeHtml(requested.title)}</div>
                 <div>Владелец оффера: ${escapeHtml(order.owner_name)}</div>
                 <div>Твоя комиссия: ${order.fee_per_user_ton} TON</div>
                 <div>Общая комиссия сделки: ${order.total_fee_ton} TON</div>
@@ -623,6 +640,10 @@
             .replaceAll("_", " ")
             .replaceAll("-", " ")
             .replace("MessageAction", "")
+            .replace("StarGiftUnique", "Уникальный Star Gift")
+            .replace("StarGift", "Star Gift")
+            .replace("GiftUnique", "Уникальный Gift")
+            .replace("Gift", "Gift")
             .replace(/\s+/g, " ")
             .trim();
 
@@ -634,7 +655,7 @@
             }
         }
 
-        if (!normalized) return { icon: "🎁", title: "Подарок Telegram" };
+        if (!normalized) return { icon: "🎁", title: "Telegram Gift" };
         return { icon: "🎁", title: normalized };
     }
 
