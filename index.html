@@ -128,6 +128,13 @@
             font-size: 24px;
         }
 
+        .gift-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
         .gift-name {
             font-size: 13px;
             margin: 0 0 8px;
@@ -384,7 +391,10 @@
             card.className = "gift-item";
             card.innerHTML = `
                 <span class="gift-preview">
-                    <span class="gift-preview-fallback">${pretty.icon}</span>
+                    ${pretty.image
+                        ? `<img src="${escapeHtml(pretty.image)}" alt="${escapeHtml(pretty.title)}" />`
+                        : `<span class="gift-preview-fallback">${pretty.icon}</span>`
+                    }
                 </span>
                 <p class="gift-name">${escapeHtml(pretty.title)}</p>
                 <button onclick="prefillGift(${idx})">Выбрать</button>
@@ -392,7 +402,7 @@
             grid.appendChild(card);
 
             const option = document.createElement("option");
-            option.value = gift;
+            option.value = pretty.rawName;
             option.textContent = `${pretty.icon} ${pretty.title}`;
             select.appendChild(option);
         });
@@ -482,9 +492,9 @@
     }
 
     function prefillGift(index) {
-        const gift = state.gifts[index];
-        if (!gift) return;
-        document.getElementById("gift-select").value = gift;
+        const gift = prettifyGift(state.gifts[index]);
+        if (!gift.rawName) return;
+        document.getElementById("gift-select").value = gift.rawName;
         tg?.HapticFeedback?.selectionChanged?.();
         softHaptic("light");
     }
@@ -634,8 +644,11 @@
             .replaceAll("'", "&#39;");
     }
 
-    function prettifyGift(rawGiftName) {
-        const raw = String(rawGiftName || "").trim();
+    function prettifyGift(giftInput) {
+        const isObject = typeof giftInput === "object" && giftInput !== null;
+        const rawName = isObject ? String(giftInput.name || "") : String(giftInput || "");
+        const rawImage = isObject ? String(giftInput.image || "") : "";
+        const raw = rawName.trim();
         const normalized = raw
             .replaceAll("_", " ")
             .replaceAll("-", " ")
@@ -651,12 +664,12 @@
             if (preset.match.test(raw) || preset.match.test(normalized)) {
                 // If payload contains a readable title, keep it.
                 const readable = normalized && normalized.length > 3 ? normalized : preset.title;
-                return { icon: preset.icon, title: readable };
+                return { icon: preset.icon, title: readable, image: rawImage, rawName: raw };
             }
         }
 
-        if (!normalized) return { icon: "🎁", title: "Telegram Gift" };
-        return { icon: "🎁", title: normalized };
+        if (!normalized) return { icon: "🎁", title: "Telegram Gift", image: rawImage, rawName: raw };
+        return { icon: "🎁", title: normalized, image: rawImage, rawName: raw };
     }
 
     loadOffers();
