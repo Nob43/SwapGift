@@ -599,9 +599,28 @@
         }
     }
 
+    async function askWithdrawConfirm(giftTitle) {
+        if (!tg || !tg.showPopup) {
+            return confirm(`Создать заявку на вывод "${giftTitle}"?\nКомиссия передачи: 25⭐`);
+        }
+        return new Promise((resolve) => {
+            tg.showPopup(
+                {
+                    title: "Вывод подарка",
+                    message: `Создать заявку на вывод "${giftTitle}"?\nКомиссия передачи: 25⭐`,
+                    buttons: [
+                        { id: "cancel", type: "cancel", text: "Отмена" },
+                        { id: "ok", type: "default", text: "Создать заявку" }
+                    ]
+                },
+                (buttonId) => resolve(buttonId === "ok")
+            );
+        });
+    }
+
     async function withdrawGift(giftId, giftTitle) {
         if (!giftId) return tg?.showAlert("Нельзя вывести: отсутствует ID подарка");
-        const proceed = confirm(`Вывести подарок "${giftTitle}"?\nКомиссия передачи: 25⭐`);
+        const proceed = await askWithdrawConfirm(giftTitle);
         if (!proceed) return;
 
         try {
@@ -611,12 +630,19 @@
                 body: JSON.stringify({ user_id: userId, gift_id: giftId })
             });
             const data = await response.json();
-            if (!response.ok || !data.ok) throw new Error(data.error || "withdraw failed");
+            if (!response.ok || !data.ok) {
+                if (data?.error === "already_requested") {
+                    return tg?.showAlert("Заявка на вывод уже создана и ждет обработки.");
+                }
+                throw new Error(data?.error || "withdraw failed");
+            }
             await loadInventory();
-            tg?.showAlert(`Подарок выведен.\nКомиссия: ${data.transfer_fee_stars}⭐`);
+            tg?.showAlert(
+                `Заявка на вывод создана.\nID: ${data.withdraw_request_id}\nСтатус: ${data.withdraw_status || "pending"}`
+            );
         } catch (err) {
             console.error(err);
-            tg?.showAlert(`Не удалось вывести подарок: ${err.message}`);
+            tg?.showAlert(`Не удалось создать заявку на вывод: ${err.message}`);
         }
     }
 
