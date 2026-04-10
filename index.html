@@ -143,6 +143,19 @@
             text-overflow: ellipsis;
         }
 
+        .gift-sub {
+            margin: 0;
+            color: #b7c5e6;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .gift-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
         .row {
             display: flex;
             gap: 8px;
@@ -392,12 +405,18 @@
             card.innerHTML = `
                 <span class="gift-preview">
                     ${pretty.image
-                        ? `<img src="${escapeHtml(pretty.image)}" alt="${escapeHtml(pretty.title)}" />`
+                        ? `<img src="${escapeHtml(resolveImageUrl(pretty.image))}" alt="${escapeHtml(pretty.title)}" />`
                         : `<span class="gift-preview-fallback">${pretty.icon}</span>`
                     }
                 </span>
                 <p class="gift-name">${escapeHtml(pretty.title)}</p>
-                <button onclick="prefillGift(${idx})">Выбрать</button>
+                ${pretty.model ? `<p class="gift-sub">Модель: <b>${escapeHtml(pretty.model)}</b></p>` : ""}
+                ${pretty.pattern ? `<p class="gift-sub">Узор: <b>${escapeHtml(pretty.pattern)}</b></p>` : ""}
+                ${pretty.background ? `<p class="gift-sub">Фон: <b>${escapeHtml(pretty.background)}</b></p>` : ""}
+                <div class="gift-actions">
+                    <button onclick="prefillGift(${idx})">Выбрать</button>
+                    <button onclick="withdrawGift(${Number(gift?.id || 0)}, '${escapeHtml(pretty.title)}')">Вывод</button>
+                </div>
             `;
             grid.appendChild(card);
 
@@ -580,6 +599,27 @@
         }
     }
 
+    async function withdrawGift(giftId, giftTitle) {
+        if (!giftId) return tg?.showAlert("Нельзя вывести: отсутствует ID подарка");
+        const proceed = confirm(`Вывести подарок "${giftTitle}"?\nКомиссия передачи: 25⭐`);
+        if (!proceed) return;
+
+        try {
+            const response = await fetch(`${BASE_URL}/withdraw_gift`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId, gift_id: giftId })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.error || "withdraw failed");
+            await loadInventory();
+            tg?.showAlert(`Подарок выведен.\nКомиссия: ${data.transfer_fee_stars}⭐`);
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert(`Не удалось вывести подарок: ${err.message}`);
+        }
+    }
+
     async function changeExchangeStatus(exchangeId, action) {
         try {
             const response = await fetch(`${BASE_URL}/exchanges/${exchangeId}/status`, {
@@ -644,10 +684,74 @@
             .replaceAll("'", "&#39;");
     }
 
+    function resolveImageUrl(imagePath) {
+        const raw = String(imagePath || "").trim();
+        if (!raw) return "";
+        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+        if (raw.startsWith("/")) return `${BASE_URL}${raw}`;
+        return `${BASE_URL}/${raw}`;
+    }
+
+    function normalizeGiftInput(giftInput) {
+        if (typeof giftInput === "string") {
+            return { rawName: giftInput, rawImage: "" };
+        }
+        if (!giftInput || typeof giftInput !== "object") {
+            return { rawName: "", rawImage: "" };
+        }
+
+        const image =
+            giftInput.image ||
+            giftInput.gift_image ||
+            "";
+
+        const title =
+            giftInput.title ??
+            "";
+        const model =
+            giftInput.model ??
+            "";
+        const pattern =
+            giftInput.pattern ??
+            "";
+        const background =
+            giftInput.background ??
+            "";
+
+        let nameCandidate =
+            giftInput.name ??
+            giftInput.gift_name ??
+            giftInput.title ??
+            giftInput.gift ??
+            "";
+
+        if (nameCandidate && typeof nameCandidate === "object") {
+            nameCandidate =
+                nameCandidate.name ??
+                nameCandidate.title ??
+                nameCandidate.id ??
+                "";
+        }
+
+        const rawName = String(nameCandidate || "");
+        return {
+            rawName,
+            rawImage: String(image || ""),
+            title: String(title || ""),
+            model: String(model || ""),
+            pattern: String(pattern || ""),
+            background: String(background || "")
+        };
+    }
+
     function prettifyGift(giftInput) {
-        const isObject = typeof giftInput === "object" && giftInput !== null;
-        const rawName = isObject ? String(giftInput.name || "") : String(giftInput || "");
-        const rawImage = isObject ? String(giftInput.image || "") : "";
+        const normalizedInput = normalizeGiftInput(giftInput);
+        const rawName = normalizedInput.rawName;
+        const rawImage = normalizedInput.rawImage;
+        const metaTitle = normalizedInput.title;
+        const metaModel = normalizedInput.model;
+        const metaPattern = normalizedInput.pattern;
+        const metaBackground = normalizedInput.background;
         const raw = rawName.trim();
         const normalized = raw
             .replaceAll("_", " ")
@@ -663,13 +767,29 @@
         for (const preset of GIFT_PRESETS) {
             if (preset.match.test(raw) || preset.match.test(normalized)) {
                 // If payload contains a readable title, keep it.
-                const readable = normalized && normalized.length > 3 ? normalized : preset.title;
-                return { icon: preset.icon, title: readable, image: rawImage, rawName: raw };
+                const readable = metaTitle || (normalized && normalized.length > 3 ? normalized : preset.title);
+                return {
+                    icon: preset.icon,
+                    title: readable,
+                    image: rawImage,
+                    rawName: raw,
+                    model: metaModel,
+                    pattern: metaPattern,
+                    background: metaBackground
+                };
             }
         }
 
-        if (!normalized) return { icon: "🎁", title: "Telegram Gift", image: rawImage, rawName: raw };
-        return { icon: "🎁", title: normalized, image: rawImage, rawName: raw };
+        const fallbackTitle = metaTitle || normalized || "Telegram Gift";
+        return {
+            icon: "🎁",
+            title: fallbackTitle,
+            image: rawImage,
+            rawName: raw,
+            model: metaModel,
+            pattern: metaPattern,
+            background: metaBackground
+        };
     }
 
     loadOffers();
