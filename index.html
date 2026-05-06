@@ -404,6 +404,36 @@
             font-weight: 700;
         }
 
+        .gift-modal-subtitle {
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        #gift-modal-close-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            line-height: 1;
+            font-weight: 600;
+            background: rgba(13, 21, 38, 0.72);
+            border: 1px solid rgba(142, 177, 244, 0.35);
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        #gift-modal-close-btn:hover {
+            background: rgba(28, 40, 67, 0.9);
+            border-color: rgba(142, 177, 244, 0.55);
+            transform: translateY(-1px);
+        }
+
         .gift-modal-image {
             width: 100%;
             aspect-ratio: 1 / 1;
@@ -533,8 +563,11 @@
 <div id="gift-modal-overlay" class="gift-modal-overlay">
     <div class="gift-modal">
         <div class="gift-modal-head">
-            <h4 id="gift-modal-title" class="gift-modal-title">Подарок</h4>
-            <button id="gift-modal-close-btn" type="button">Закрыть</button>
+            <div>
+                <h4 id="gift-modal-title" class="gift-modal-title">Подарок</h4>
+                <div id="gift-modal-subtitle" class="gift-modal-subtitle"></div>
+            </div>
+            <button id="gift-modal-close-btn" type="button" aria-label="Закрыть">×</button>
         </div>
         <div id="gift-modal-image" class="gift-modal-image"></div>
         <div id="gift-modal-info" class="gift-modal-info"></div>
@@ -975,6 +1008,8 @@
         state.activeGiftIndex = index;
         const pretty = prettifyGift(gift);
         document.getElementById("gift-modal-title").textContent = pretty.title || "Подарок";
+        const numberMatch = String(gift?.name || pretty.rawName || gift?.fragment_slug || "").match(/-(\d+)\b/);
+        document.getElementById("gift-modal-subtitle").textContent = numberMatch ? `#${numberMatch[1]}` : "";
         document.getElementById("gift-modal-image").innerHTML = pretty.image
             ? `<img src="${escapeHtml(resolveImageUrl(pretty.image))}" alt="${escapeHtml(pretty.title)}" />`
             : `<div class="gift-preview-fallback" style="display:flex;align-items:center;justify-content:center;height:100%;">${pretty.icon}</div>`;
@@ -982,7 +1017,6 @@
         if (pretty.model) info.push(`Модель: <b>${escapeHtml(pretty.model)}</b>`);
         if (pretty.pattern) info.push(`Узор: <b>${escapeHtml(pretty.pattern)}</b>`);
         if (pretty.background) info.push(`Фон: <b>${escapeHtml(pretty.background)}</b>`);
-        if (gift?.fragment_slug) info.push(`Slug: <b>${escapeHtml(gift.fragment_slug)}</b>`);
         document.getElementById("gift-modal-info").innerHTML = info.length
             ? info.map((line) => `<div>${line}</div>`).join("")
             : '<div class="empty" style="text-align:left;padding:0;">Нет доп. информации</div>';
