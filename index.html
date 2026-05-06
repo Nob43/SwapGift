@@ -289,6 +289,89 @@
             border: 1px solid rgba(152, 194, 255, 0.35);
         }
 
+        .filter-trigger {
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .picker-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 10, 20, 0.56);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 1100;
+            padding: 12px;
+        }
+
+        .picker-overlay.open {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .picker-panel {
+            width: min(640px, 100%);
+            max-height: 78vh;
+            overflow: auto;
+            border-radius: 16px;
+            border: 1px solid rgba(136, 171, 240, 0.35);
+            background: linear-gradient(180deg, rgba(36, 50, 85, 0.98), rgba(25, 35, 60, 0.98));
+            box-shadow: 0 20px 38px rgba(2, 8, 19, 0.55);
+            padding: 12px;
+            animation: slideUp 0.22s ease;
+        }
+
+        .picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .picker-header h4 {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .picker-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .picker-item {
+            width: 100%;
+            text-align: left;
+            border: 1px solid rgba(128, 159, 224, 0.35);
+            background: rgba(115, 153, 224, 0.14);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: var(--text);
+        }
+
+        .picker-item.active {
+            border-color: rgba(157, 206, 255, 0.7);
+            background: rgba(110, 180, 255, 0.24);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(12px); opacity: 0.7; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             * {
                 transition: none !important;
@@ -343,17 +426,11 @@
                 <input id="market-search-input" type="text" maxlength="64" placeholder="Поиск: подарок или пользователь">
             </div>
             <div class="row" style="margin-bottom:8px;">
-                <select id="market-model-filter">
-                    <option value="">Все модели</option>
-                </select>
+                <button id="market-model-filter-btn" class="filter-trigger" type="button">Модель: Все</button>
             </div>
             <div class="row" style="margin-bottom:8px;">
-                <select id="market-pattern-filter">
-                    <option value="">Все узоры</option>
-                </select>
-                <select id="market-background-filter">
-                    <option value="">Все фоны</option>
-                </select>
+                <button id="market-pattern-filter-btn" class="filter-trigger" type="button">Узор: Все</button>
+                <button id="market-background-filter-btn" class="filter-trigger" type="button">Фон: Все</button>
             </div>
             <div id="market-list"></div>
         </div>
@@ -365,6 +442,20 @@
             <div id="orders-list"></div>
         </div>
     </section>
+</div>
+
+<div id="filter-picker-overlay" class="picker-overlay">
+    <div class="picker-panel">
+        <div class="picker-header">
+            <h4 id="filter-picker-title">Выбор</h4>
+            <button id="filter-picker-close-btn" type="button">Закрыть</button>
+        </div>
+        <div class="row">
+            <input id="filter-picker-search" type="text" maxlength="64" placeholder="Поиск значения">
+            <button id="filter-picker-reset-btn" type="button">Сброс</button>
+        </div>
+        <div id="filter-picker-list" class="picker-list"></div>
+    </div>
 </div>
 
 <nav class="tab-bar">
@@ -398,6 +489,7 @@
             pattern: "",
             background: ""
         },
+        activeFilterType: "",
         traitCatalog: {
             model: [],
             pattern: [],
@@ -442,18 +534,12 @@
         state.marketSearch = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
-    document.getElementById("market-model-filter").addEventListener("change", (event) => {
-        state.marketFilters.model = String(event?.target?.value || "").trim().toLowerCase();
-        renderMarket();
-    });
-    document.getElementById("market-pattern-filter").addEventListener("change", (event) => {
-        state.marketFilters.pattern = String(event?.target?.value || "").trim().toLowerCase();
-        renderMarket();
-    });
-    document.getElementById("market-background-filter").addEventListener("change", (event) => {
-        state.marketFilters.background = String(event?.target?.value || "").trim().toLowerCase();
-        renderMarket();
-    });
+    document.getElementById("market-model-filter-btn").addEventListener("click", () => openFilterPicker("model"));
+    document.getElementById("market-pattern-filter-btn").addEventListener("click", () => openFilterPicker("pattern"));
+    document.getElementById("market-background-filter-btn").addEventListener("click", () => openFilterPicker("background"));
+    document.getElementById("filter-picker-close-btn").addEventListener("click", closeFilterPicker);
+    document.getElementById("filter-picker-search").addEventListener("input", renderFilterPickerList);
+    document.getElementById("filter-picker-reset-btn").addEventListener("click", resetActiveFilter);
 
     function switchTab(tab, el) {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
@@ -576,19 +662,7 @@
     }
 
     function fillFilterSelect(selectId, values, placeholder) {
-        const select = document.getElementById(selectId);
-        if (!select) return;
-        const current = String(select.value || "").trim().toLowerCase();
-        select.innerHTML = `<option value="">${placeholder}</option>`;
-        values.forEach((value) => {
-            const option = document.createElement("option");
-            option.value = value.toLowerCase();
-            option.textContent = value;
-            select.appendChild(option);
-        });
-        if (current && values.some((v) => v.toLowerCase() === current)) {
-            select.value = current;
-        }
+        return;
     }
 
     function refreshMarketFilterOptions() {
@@ -615,13 +689,75 @@
         state.traitCatalog.background.forEach((v) => backgroundSet.add(v));
 
         const sortFn = (a, b) => a.localeCompare(b, "ru");
-        fillFilterSelect("market-model-filter", Array.from(modelSet).sort(sortFn), "Все модели");
-        fillFilterSelect("market-pattern-filter", Array.from(patternSet).sort(sortFn), "Все узоры");
-        fillFilterSelect("market-background-filter", Array.from(backgroundSet).sort(sortFn), "Все фоны");
+        state.traitCatalog.model = Array.from(modelSet).sort(sortFn);
+        state.traitCatalog.pattern = Array.from(patternSet).sort(sortFn);
+        state.traitCatalog.background = Array.from(backgroundSet).sort(sortFn);
+        refreshFilterTriggerLabels();
+    }
 
-        state.marketFilters.model = String(document.getElementById("market-model-filter").value || "");
-        state.marketFilters.pattern = String(document.getElementById("market-pattern-filter").value || "");
-        state.marketFilters.background = String(document.getElementById("market-background-filter").value || "");
+    function refreshFilterTriggerLabels() {
+        const modelText = state.marketFilters.model ? `Модель: ${state.marketFilters.model}` : "Модель: Все";
+        const patternText = state.marketFilters.pattern ? `Узор: ${state.marketFilters.pattern}` : "Узор: Все";
+        const backgroundText = state.marketFilters.background ? `Фон: ${state.marketFilters.background}` : "Фон: Все";
+        document.getElementById("market-model-filter-btn").textContent = modelText;
+        document.getElementById("market-pattern-filter-btn").textContent = patternText;
+        document.getElementById("market-background-filter-btn").textContent = backgroundText;
+    }
+
+    function openFilterPicker(type) {
+        state.activeFilterType = type;
+        const titles = { model: "Выбор модели", pattern: "Выбор узора", background: "Выбор фона" };
+        document.getElementById("filter-picker-title").textContent = titles[type] || "Выбор";
+        document.getElementById("filter-picker-search").value = "";
+        document.getElementById("filter-picker-overlay").classList.add("open");
+        renderFilterPickerList();
+    }
+
+    function closeFilterPicker() {
+        document.getElementById("filter-picker-overlay").classList.remove("open");
+        state.activeFilterType = "";
+    }
+
+    function applyFilterValue(value) {
+        const type = state.activeFilterType;
+        if (!type) return;
+        state.marketFilters[type] = String(value || "").trim().toLowerCase();
+        refreshFilterTriggerLabels();
+        renderMarket();
+        closeFilterPicker();
+    }
+
+    function resetActiveFilter() {
+        applyFilterValue("");
+    }
+
+    function renderFilterPickerList() {
+        const root = document.getElementById("filter-picker-list");
+        const type = state.activeFilterType;
+        if (!type) {
+            root.innerHTML = "";
+            return;
+        }
+        const query = String(document.getElementById("filter-picker-search").value || "").trim().toLowerCase();
+        const current = String(state.marketFilters[type] || "").toLowerCase();
+        const values = (state.traitCatalog[type] || [])
+            .map((v) => String(v || "").trim())
+            .filter((v) => v && (!query || v.toLowerCase().includes(query)));
+
+        const allValues = [{ value: "", label: "Все варианты" }, ...values.map((v) => ({ value: v, label: v }))];
+        if (!allValues.length) {
+            root.innerHTML = '<div class="empty" style="grid-column:span 2;">Нет данных</div>';
+            return;
+        }
+        root.innerHTML = "";
+        allValues.forEach((item) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `picker-item${item.value.toLowerCase() === current ? " active" : ""}`;
+            btn.textContent = item.label;
+            btn.addEventListener("click", () => applyFilterValue(item.value));
+            root.appendChild(btn);
+        });
     }
 
     async function loadTraitCatalog() {
