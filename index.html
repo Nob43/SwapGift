@@ -342,6 +342,19 @@
             <div class="row" style="margin-bottom:8px;">
                 <input id="market-search-input" type="text" maxlength="64" placeholder="Поиск: подарок или пользователь">
             </div>
+            <div class="row" style="margin-bottom:8px;">
+                <select id="market-model-filter">
+                    <option value="">Все модели</option>
+                </select>
+            </div>
+            <div class="row" style="margin-bottom:8px;">
+                <select id="market-pattern-filter">
+                    <option value="">Все узоры</option>
+                </select>
+                <select id="market-background-filter">
+                    <option value="">Все фоны</option>
+                </select>
+            </div>
             <div id="market-list"></div>
         </div>
     </section>
@@ -379,7 +392,12 @@
         listings: [],
         orders: [],
         withdrawals: [],
-        marketSearch: ""
+        marketSearch: "",
+        marketFilters: {
+            model: "",
+            pattern: "",
+            background: ""
+        }
     };
 
     const GIFT_PRESETS = [
@@ -417,6 +435,18 @@
     document.getElementById("create-listing-btn").addEventListener("click", createListingFromForm);
     document.getElementById("market-search-input").addEventListener("input", (event) => {
         state.marketSearch = String(event?.target?.value || "").trim().toLowerCase();
+        renderMarket();
+    });
+    document.getElementById("market-model-filter").addEventListener("change", (event) => {
+        state.marketFilters.model = String(event?.target?.value || "").trim().toLowerCase();
+        renderMarket();
+    });
+    document.getElementById("market-pattern-filter").addEventListener("change", (event) => {
+        state.marketFilters.pattern = String(event?.target?.value || "").trim().toLowerCase();
+        renderMarket();
+    });
+    document.getElementById("market-background-filter").addEventListener("change", (event) => {
+        state.marketFilters.background = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
 
@@ -476,15 +506,30 @@
         }
 
         const query = state.marketSearch;
+        const filters = state.marketFilters;
         const filtered = state.listings.filter((item) => {
-            if (!query) return true;
             const give = prettifyGift(item.gift_name);
             const want = prettifyGift(item.wanted_gift);
+            const modelValues = [give.model, want.model].map((v) => String(v || "").toLowerCase());
+            const patternValues = [give.pattern, want.pattern].map((v) => String(v || "").toLowerCase());
+            const backgroundValues = [give.background, want.background].map((v) => String(v || "").toLowerCase());
+
+            if (filters.model && !modelValues.includes(filters.model)) return false;
+            if (filters.pattern && !patternValues.includes(filters.pattern)) return false;
+            if (filters.background && !backgroundValues.includes(filters.background)) return false;
+
+            if (!query) return true;
             const haystack = [
                 give.title,
                 give.rawName,
                 want.title,
                 want.rawName,
+                give.model,
+                give.pattern,
+                give.background,
+                want.model,
+                want.pattern,
+                want.background,
                 item.owner_name,
                 item.status,
             ]
@@ -523,6 +568,53 @@
             `;
             root.appendChild(div);
         });
+    }
+
+    function fillFilterSelect(selectId, values, placeholder) {
+        const select = document.getElementById(selectId);
+        const currentValue = String(select?.value || "").trim().toLowerCase();
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+        values.forEach((value) => {
+            const option = document.createElement("option");
+            option.value = value.toLowerCase();
+            option.textContent = value;
+            select.appendChild(option);
+        });
+        if (currentValue && values.some((v) => v.toLowerCase() === currentValue)) {
+            select.value = currentValue;
+        } else {
+            select.value = "";
+        }
+    }
+
+    function refreshMarketFilterOptions() {
+        const modelSet = new Set();
+        const patternSet = new Set();
+        const backgroundSet = new Set();
+
+        const collectFromPretty = (pretty) => {
+            const model = String(pretty?.model || "").trim();
+            const pattern = String(pretty?.pattern || "").trim();
+            const background = String(pretty?.background || "").trim();
+            if (model) modelSet.add(model);
+            if (pattern) patternSet.add(pattern);
+            if (background) backgroundSet.add(background);
+        };
+
+        state.gifts.forEach((gift) => collectFromPretty(prettifyGift(gift)));
+        state.listings.forEach((item) => {
+            collectFromPretty(prettifyGift(item.gift_name));
+            collectFromPretty(prettifyGift(item.wanted_gift));
+        });
+
+        const sortFn = (a, b) => a.localeCompare(b, "ru");
+        fillFilterSelect("market-model-filter", Array.from(modelSet).sort(sortFn), "Все модели");
+        fillFilterSelect("market-pattern-filter", Array.from(patternSet).sort(sortFn), "Все узоры");
+        fillFilterSelect("market-background-filter", Array.from(backgroundSet).sort(sortFn), "Все фоны");
+
+        state.marketFilters.model = String(document.getElementById("market-model-filter").value || "");
+        state.marketFilters.pattern = String(document.getElementById("market-pattern-filter").value || "");
+        state.marketFilters.background = String(document.getElementById("market-background-filter").value || "");
     }
 
     function renderOrders() {
@@ -782,6 +874,7 @@
             console.error(err);
             state.gifts = [];
         }
+        refreshMarketFilterOptions();
         renderInventory();
     }
 
@@ -807,6 +900,7 @@
         } catch {
             state.listings = [];
         }
+        refreshMarketFilterOptions();
         renderMarket();
     }
 
