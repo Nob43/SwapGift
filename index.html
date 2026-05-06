@@ -7,17 +7,17 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: #0b0f19;
-            --bg2: #111827;
-            --surface: #141b2d;
-            --card: #151e33;
-            --line: #273453;
-            --text: #edf3ff;
-            --muted: #9aa8c7;
-            --primary: #5bb4ff;
-            --primary-2: #7a8cff;
-            --green: #36d39a;
-            --danger: #ff6478;
+            --bg: #070b14;
+            --bg2: #0d1423;
+            --surface: #121a2b;
+            --card: #111a2d;
+            --line: #233351;
+            --text: #e8f0ff;
+            --muted: #8d9fbe;
+            --primary: #68b3ff;
+            --primary-2: #8b7cff;
+            --green: #31d7a0;
+            --danger: #ff627d;
         }
 
         * { box-sizing: border-box; }
@@ -26,11 +26,13 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: radial-gradient(1200px 700px at 10% -10%, #1a2850 0%, transparent 55%),
-                        radial-gradient(900px 500px at 90% -15%, #20335c 0%, transparent 50%),
+            background: radial-gradient(1000px 600px at 10% -20%, rgba(67, 95, 171, 0.32) 0%, transparent 55%),
+                        radial-gradient(900px 550px at 100% -20%, rgba(108, 90, 190, 0.24) 0%, transparent 54%),
                         linear-gradient(180deg, var(--bg2), var(--bg));
             color: var(--text);
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
 
         .app {
@@ -39,9 +41,9 @@
 
         .top {
             padding: 18px 16px 14px;
-            border-bottom: 1px solid rgba(125, 147, 199, 0.16);
-            background: linear-gradient(180deg, rgba(25, 34, 56, 0.82), rgba(11, 15, 25, 0.55));
-            backdrop-filter: blur(8px);
+            border-bottom: 1px solid rgba(126, 150, 206, 0.14);
+            background: linear-gradient(180deg, rgba(22, 33, 56, 0.78), rgba(10, 15, 26, 0.52));
+            backdrop-filter: blur(12px);
         }
 
         .user-row {
@@ -60,7 +62,7 @@
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            box-shadow: 0 8px 22px rgba(72, 136, 255, 0.35);
+            box-shadow: 0 10px 24px rgba(88, 137, 255, 0.34);
         }
 
         .title {
@@ -82,12 +84,19 @@
         .tab-content.active { display: block; }
 
         .card {
-            background: linear-gradient(180deg, rgba(24, 35, 60, 0.84), rgba(21, 30, 51, 0.9));
-            border: 1px solid rgba(121, 146, 201, 0.22);
-            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(20, 31, 53, 0.86), rgba(17, 26, 45, 0.9));
+            border: 1px solid rgba(121, 146, 201, 0.17);
+            border-radius: 18px;
             padding: 13px;
             margin-bottom: 12px;
-            box-shadow: 0 12px 24px rgba(1, 7, 18, 0.28);
+            box-shadow: 0 12px 28px rgba(2, 8, 19, 0.32);
+            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 34px rgba(2, 10, 24, 0.44);
+            border-color: rgba(129, 160, 228, 0.24);
         }
 
         .card-title {
@@ -105,27 +114,34 @@
         }
 
         .gift-item {
-            border: 1px solid rgba(124, 149, 206, 0.24);
-            background: linear-gradient(180deg, rgba(21, 31, 51, 0.95), rgba(17, 25, 40, 0.95));
+            border: 1px solid rgba(123, 150, 212, 0.2);
+            background: linear-gradient(180deg, rgba(21, 31, 53, 0.95), rgba(16, 24, 41, 0.95));
             border-radius: 14px;
             padding: 10px;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .gift-item:hover {
+            transform: translateY(-1px);
+            border-color: rgba(135, 172, 246, 0.35);
+            box-shadow: 0 12px 22px rgba(6, 12, 25, 0.38);
         }
 
         .gift-preview {
-            width: 52px;
-            height: 52px;
+            width: 100%;
+            aspect-ratio: 1 / 1;
             border-radius: 12px;
-            border: 1px solid rgba(139, 166, 224, 0.34);
-            background: rgba(11, 17, 30, 0.62);
+            border: 1px solid rgba(139, 166, 224, 0.27);
+            background: rgba(8, 14, 26, 0.74);
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             overflow: hidden;
         }
 
         .gift-preview-fallback {
-            font-size: 24px;
+            font-size: 42px;
         }
 
         .gift-preview img {
@@ -164,12 +180,13 @@
         input, select, button {
             width: 100%;
             border-radius: 12px;
-            border: 1px solid rgba(121, 146, 201, 0.35);
+            border: 1px solid rgba(121, 146, 201, 0.3);
             background: var(--surface);
             color: var(--text);
             padding: 10px 11px;
             font-size: 13px;
             outline: none;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, transform 0.1s ease;
         }
 
         input::placeholder { color: #8d9bc0; }
@@ -180,12 +197,13 @@
 
         button {
             cursor: pointer;
-            background: linear-gradient(180deg, #243a63, #223149);
-            border-color: rgba(106, 145, 222, 0.5);
-            transition: transform 0.08s ease, filter 0.15s ease;
+            background: linear-gradient(180deg, #21375e, #1c2e4a);
+            border-color: rgba(106, 145, 222, 0.46);
+            box-shadow: 0 8px 16px rgba(9, 16, 30, 0.26);
+            transition: transform 0.1s ease, filter 0.18s ease, box-shadow 0.18s ease;
         }
         button:active { transform: translateY(1px) scale(0.99); }
-        button:hover { filter: brightness(1.06); }
+        button:hover { filter: brightness(1.06); box-shadow: 0 12px 20px rgba(9, 16, 30, 0.36); }
 
         button.primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-2));
@@ -202,10 +220,10 @@
         }
 
         .listing {
-            border: 1px solid rgba(125, 149, 202, 0.24);
+            border: 1px solid rgba(125, 149, 202, 0.18);
             border-radius: 14px;
             padding: 10px;
-            background: linear-gradient(180deg, rgba(22, 30, 50, 0.94), rgba(18, 26, 43, 0.96));
+            background: linear-gradient(180deg, rgba(20, 30, 50, 0.94), rgba(16, 24, 40, 0.96));
             margin-bottom: 8px;
         }
 
@@ -245,9 +263,9 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(9, 13, 23, 0.88);
-            border-top: 1px solid rgba(121, 146, 201, 0.2);
-            backdrop-filter: blur(12px);
+            background: rgba(8, 12, 21, 0.82);
+            border-top: 1px solid rgba(121, 146, 201, 0.14);
+            backdrop-filter: blur(16px);
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 2px;
@@ -265,8 +283,15 @@
 
         .tab-item.active {
             color: var(--text);
-            background: linear-gradient(180deg, rgba(94, 148, 255, 0.25), rgba(95, 124, 255, 0.19));
-            border: 1px solid rgba(130, 176, 255, 0.35);
+            background: linear-gradient(180deg, rgba(94, 148, 255, 0.24), rgba(95, 124, 255, 0.14));
+            border: 1px solid rgba(130, 176, 255, 0.3);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
         }
     </style>
 </head>
@@ -288,6 +313,11 @@
             <div id="inventory-grid" class="inventory-grid">
                 <div class="empty">Загрузка склада...</div>
             </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Мои заявки на вывод</h3>
+            <div id="withdrawals-list" class="empty">Загрузка заявок...</div>
         </div>
 
         <div class="card">
@@ -342,7 +372,8 @@
     const state = {
         gifts: [],
         listings: [],
-        orders: []
+        orders: [],
+        withdrawals: []
     };
 
     const GIFT_PRESETS = [
@@ -510,6 +541,40 @@
         return "";
     }
 
+    function renderWithdrawals() {
+        const root = document.getElementById("withdrawals-list");
+        if (!state.withdrawals.length) {
+            root.innerHTML = '<div class="empty">Заявок на вывод пока нет.</div>';
+            return;
+        }
+
+        root.innerHTML = "";
+        state.withdrawals.forEach((item) => {
+            const statusMap = {
+                pending: "Ожидает обработки",
+                processing: "В обработке",
+                completed: "Завершено",
+                rejected: "Отклонено"
+            };
+            const statusText = statusMap[item.status] || item.status;
+            const statusClass = item.status === "completed" ? "status-ok" : (item.status === "rejected" ? "status-bad" : "");
+            const pretty = prettifyGift({ name: item.gift_name, image: item.gift_image });
+
+            const card = document.createElement("div");
+            card.className = "listing";
+            card.innerHTML = `
+                <div class="listing-top">
+                    <b>Заявка #${item.id}</b>
+                    <span class="${statusClass}">${escapeHtml(statusText)}</span>
+                </div>
+                <div>${pretty.icon} ${escapeHtml(pretty.title)}</div>
+                <div style="color:var(--muted);font-size:12px;">Комиссия: ${Number(item.fee_stars || 0)}⭐</div>
+                <div style="color:var(--muted);font-size:12px;">${new Date(item.created_at).toLocaleString()}</div>
+            `;
+            root.appendChild(card);
+        });
+    }
+
     function prefillGift(index) {
         const gift = prettifyGift(state.gifts[index]);
         if (!gift.rawName) return;
@@ -637,6 +702,7 @@
                 throw new Error(data?.error || "withdraw failed");
             }
             await loadInventory();
+            await loadWithdrawals();
             tg?.showAlert(
                 `Заявка на вывод создана.\nID: ${data.withdraw_request_id}\nСтатус: ${data.withdraw_status || "pending"}`
             );
@@ -675,6 +741,19 @@
             state.gifts = [];
         }
         renderInventory();
+    }
+
+    async function loadWithdrawals() {
+        try {
+            const response = await fetch(`${BASE_URL}/withdrawals?user_id=${userId}`);
+            if (!response.ok) throw new Error("withdrawals API unavailable");
+            const data = await response.json();
+            state.withdrawals = Array.isArray(data.withdrawals) ? data.withdrawals : [];
+        } catch (err) {
+            console.error(err);
+            state.withdrawals = [];
+        }
+        renderWithdrawals();
     }
 
     async function loadOffers() {
@@ -729,6 +808,7 @@
         const image =
             giftInput.image ||
             giftInput.gift_image ||
+            giftInput.fragment_image ||
             "";
 
         const title =
@@ -821,6 +901,7 @@
     loadOffers();
     loadMyExchanges();
     loadInventory();
+    loadWithdrawals();
 </script>
 </body>
 </html>
