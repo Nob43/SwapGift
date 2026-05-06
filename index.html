@@ -289,6 +289,60 @@
             border: 1px solid rgba(152, 194, 255, 0.35);
         }
 
+        .picker-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 10, 19, 0.68);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: flex-end;
+            z-index: 1000;
+        }
+
+        .picker-modal.open {
+            display: flex;
+        }
+
+        .picker-sheet {
+            width: 100%;
+            max-height: 78vh;
+            overflow: auto;
+            background: linear-gradient(180deg, rgba(31, 44, 75, 0.98), rgba(21, 30, 51, 0.98));
+            border-top: 1px solid rgba(144, 179, 247, 0.35);
+            border-radius: 16px 16px 0 0;
+            padding: 12px;
+        }
+
+        .picker-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .picker-title {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .picker-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .picker-chip {
+            border: 1px solid rgba(128, 162, 228, 0.34);
+            background: rgba(73, 107, 177, 0.2);
+            border-radius: 10px;
+            color: var(--text);
+            padding: 8px;
+            font-size: 12px;
+            text-align: left;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             * {
                 transition: none !important;
@@ -352,6 +406,9 @@
                 <input id="market-background-filter" type="text" list="market-background-options" maxlength="64" placeholder="Фильтр по фону">
                 <datalist id="market-background-options"></datalist>
             </div>
+            <div class="row" style="margin-bottom:8px;">
+                <button id="open-traits-picker-btn">Выбрать из справочника</button>
+            </div>
             <div id="market-list"></div>
         </div>
     </section>
@@ -362,6 +419,24 @@
             <div id="orders-list"></div>
         </div>
     </section>
+</div>
+
+<div id="traits-picker-modal" class="picker-modal">
+    <div class="picker-sheet">
+        <div class="picker-head">
+            <h4 class="picker-title">Справочник атрибутов Telegram</h4>
+            <button id="traits-picker-close-btn" type="button">Закрыть</button>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+            <select id="traits-picker-type">
+                <option value="model">Модели</option>
+                <option value="pattern">Узоры</option>
+                <option value="background">Фоны</option>
+            </select>
+            <input id="traits-picker-search" type="text" maxlength="64" placeholder="Поиск значения">
+        </div>
+        <div id="traits-picker-list" class="picker-grid"></div>
+    </div>
 </div>
 
 <nav class="tab-bar">
@@ -394,6 +469,11 @@
             model: "",
             pattern: "",
             background: ""
+        },
+        traitCatalog: {
+            model: [],
+            pattern: [],
+            background: []
         }
     };
 
@@ -446,6 +526,10 @@
         state.marketFilters.background = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
+    document.getElementById("open-traits-picker-btn").addEventListener("click", openTraitsPicker);
+    document.getElementById("traits-picker-close-btn").addEventListener("click", closeTraitsPicker);
+    document.getElementById("traits-picker-type").addEventListener("change", renderTraitsPickerList);
+    document.getElementById("traits-picker-search").addEventListener("input", renderTraitsPickerList);
 
     function switchTab(tab, el) {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
@@ -602,6 +686,65 @@
         fillFilterDatalist("market-model-options", Array.from(modelSet).sort(sortFn));
         fillFilterDatalist("market-pattern-options", Array.from(patternSet).sort(sortFn));
         fillFilterDatalist("market-background-options", Array.from(backgroundSet).sort(sortFn));
+    }
+
+    function openTraitsPicker() {
+        document.getElementById("traits-picker-modal").classList.add("open");
+        renderTraitsPickerList();
+    }
+
+    function closeTraitsPicker() {
+        document.getElementById("traits-picker-modal").classList.remove("open");
+    }
+
+    function applyTraitValue(value) {
+        const type = document.getElementById("traits-picker-type").value;
+        if (type === "model") {
+            document.getElementById("market-model-filter").value = value;
+            state.marketFilters.model = value.toLowerCase();
+        } else if (type === "pattern") {
+            document.getElementById("market-pattern-filter").value = value;
+            state.marketFilters.pattern = value.toLowerCase();
+        } else {
+            document.getElementById("market-background-filter").value = value;
+            state.marketFilters.background = value.toLowerCase();
+        }
+        renderMarket();
+        closeTraitsPicker();
+    }
+
+    function renderTraitsPickerList() {
+        const type = document.getElementById("traits-picker-type").value;
+        const query = String(document.getElementById("traits-picker-search").value || "").trim().toLowerCase();
+        const list = Array.isArray(state.traitCatalog[type]) ? state.traitCatalog[type] : [];
+        const filtered = list.filter((v) => !query || String(v).toLowerCase().includes(query));
+        const root = document.getElementById("traits-picker-list");
+        if (!filtered.length) {
+            root.innerHTML = '<div class="empty" style="grid-column:span 2;">Ничего не найдено</div>';
+            return;
+        }
+        root.innerHTML = "";
+        filtered.forEach((value) => {
+            const btn = document.createElement("button");
+            btn.className = "picker-chip";
+            btn.type = "button";
+            btn.textContent = value;
+            btn.addEventListener("click", () => applyTraitValue(value));
+            root.appendChild(btn);
+        });
+    }
+
+    async function loadTraitCatalog() {
+        try {
+            const response = await fetch(`${BASE_URL}/catalog/traits`);
+            if (!response.ok) throw new Error("traits API unavailable");
+            const data = await response.json();
+            state.traitCatalog.model = Array.isArray(data.models) ? data.models : [];
+            state.traitCatalog.pattern = Array.isArray(data.patterns) ? data.patterns : [];
+            state.traitCatalog.background = Array.isArray(data.backgrounds) ? data.backgrounds : [];
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     function renderOrders() {
@@ -1025,6 +1168,7 @@
     loadMyExchanges();
     loadInventory();
     loadWithdrawals();
+    loadTraitCatalog();
 </script>
 </body>
 </html>
