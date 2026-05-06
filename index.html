@@ -35,6 +35,63 @@
             text-rendering: optimizeLegibility;
         }
 
+        body.boot-loading {
+            overflow: hidden;
+        }
+
+        .boot-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(900px 540px at 12% -16%, rgba(122, 168, 255, 0.2) 0%, transparent 54%),
+                        radial-gradient(860px 520px at 100% -16%, rgba(171, 128, 255, 0.18) 0%, transparent 53%),
+                        linear-gradient(180deg, var(--bg2), var(--bg));
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.28s ease, visibility 0.28s ease;
+        }
+
+        .boot-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .boot-card {
+            width: min(320px, calc(100vw - 36px));
+            padding: 20px 18px;
+            border-radius: 18px;
+            text-align: center;
+            border: 1px solid rgba(125, 154, 218, 0.24);
+            background: linear-gradient(180deg, rgba(39, 54, 91, 0.92), rgba(32, 44, 74, 0.95));
+            box-shadow: 0 16px 32px rgba(2, 8, 19, 0.42);
+        }
+
+        .boot-spinner {
+            width: 30px;
+            height: 30px;
+            margin: 0 auto 10px;
+            border-radius: 50%;
+            border: 2px solid rgba(162, 191, 255, 0.25);
+            border-top-color: var(--primary);
+            animation: spin 0.85s linear infinite;
+        }
+
+        .boot-title {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .boot-subtitle {
+            margin: 6px 0 0;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
         .app {
             padding-bottom: 82px;
         }
@@ -474,6 +531,11 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             * {
                 transition: none !important;
@@ -483,6 +545,13 @@
     </style>
 </head>
 <body>
+<div id="boot-overlay" class="boot-overlay">
+    <div class="boot-card">
+        <div class="boot-spinner" aria-hidden="true"></div>
+        <h3 class="boot-title">Загрузка GiftMatch</h3>
+        <p class="boot-subtitle">Подготавливаем склад, витрину и фильтры...</p>
+    </div>
+</div>
 <div class="app">
     <header class="top">
         <div class="user-row">
@@ -597,6 +666,8 @@
 
     const BASE_URL = "http://127.0.0.1:8080";
     const FEE_PER_PARTICIPANT_TON = 0.6;
+    const bootOverlayEl = document.getElementById("boot-overlay");
+    document.body.classList.add("boot-loading");
 
     const state = {
         gifts: [],
@@ -1354,11 +1425,32 @@
         };
     }
 
-    loadOffers();
-    loadMyExchanges();
-    loadInventory();
-    loadWithdrawals();
-    loadTraitCatalog();
+    function finishBootLoading() {
+        bootOverlayEl?.classList.add("hidden");
+        window.setTimeout(() => {
+            document.body.classList.remove("boot-loading");
+        }, 300);
+    }
+
+    async function initializeApp() {
+        const bootTimeout = window.setTimeout(() => {
+            finishBootLoading();
+        }, 7000);
+        try {
+            await Promise.allSettled([
+                loadOffers(),
+                loadMyExchanges(),
+                loadInventory(),
+                loadWithdrawals(),
+                loadTraitCatalog()
+            ]);
+        } finally {
+            window.clearTimeout(bootTimeout);
+            finishBootLoading();
+        }
+    }
+
+    initializeApp();
 </script>
 </body>
 </html>
