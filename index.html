@@ -339,6 +339,9 @@
     <section id="tab-market" class="tab-content">
         <div class="card">
             <h3 class="card-title">Витрина предложений</h3>
+            <div class="row" style="margin-bottom:8px;">
+                <input id="market-search-input" type="text" maxlength="64" placeholder="Поиск: подарок или пользователь">
+            </div>
             <div id="market-list"></div>
         </div>
     </section>
@@ -375,7 +378,8 @@
         gifts: [],
         listings: [],
         orders: [],
-        withdrawals: []
+        withdrawals: [],
+        marketSearch: ""
     };
 
     const GIFT_PRESETS = [
@@ -411,6 +415,10 @@
     });
 
     document.getElementById("create-listing-btn").addEventListener("click", createListingFromForm);
+    document.getElementById("market-search-input").addEventListener("input", (event) => {
+        state.marketSearch = String(event?.target?.value || "").trim().toLowerCase();
+        renderMarket();
+    });
 
     function switchTab(tab, el) {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
@@ -467,8 +475,31 @@
             return;
         }
 
+        const query = state.marketSearch;
+        const filtered = state.listings.filter((item) => {
+            if (!query) return true;
+            const give = prettifyGift(item.gift_name);
+            const want = prettifyGift(item.wanted_gift);
+            const haystack = [
+                give.title,
+                give.rawName,
+                want.title,
+                want.rawName,
+                item.owner_name,
+                item.status,
+            ]
+                .map((v) => String(v || "").toLowerCase())
+                .join(" ");
+            return haystack.includes(query);
+        });
+
+        if (!filtered.length) {
+            root.innerHTML = '<div class="empty">По запросу ничего не найдено.</div>';
+            return;
+        }
+
         root.innerHTML = "";
-        state.listings.forEach((item, idx) => {
+        filtered.forEach((item) => {
             const give = prettifyGift(item.gift_name);
             const want = prettifyGift(item.wanted_gift);
             const div = document.createElement("div");
@@ -486,7 +517,7 @@
                     Комиссия: ${FEE_PER_PARTICIPANT_TON} TON с каждого участника
                 </div>
                 <div class="row" style="margin-top:8px;">
-                    <button class="success" onclick="requestExchange(${idx})">Предложить обмен</button>
+                    <button class="success" onclick="requestExchangeById(${Number(item.id)})">Предложить обмен</button>
                     ${Number(item.owner_id) === Number(userId) ? `<button onclick="removeOffer(${item.id})">Убрать</button>` : ""}
                 </div>
             `;
@@ -647,6 +678,15 @@
             console.error(err);
             tg?.showAlert("Не удалось отправить запрос обмена");
         }
+    }
+
+    async function requestExchangeById(offerId) {
+        const index = state.listings.findIndex((item) => Number(item.id) === Number(offerId));
+        if (index < 0) {
+            tg?.showAlert("Оффер не найден. Обнови витрину.");
+            return;
+        }
+        await requestExchange(index);
     }
 
     async function removeOffer(offerId) {
