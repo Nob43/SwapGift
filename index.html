@@ -362,6 +362,78 @@
             background: rgba(110, 180, 255, 0.24);
         }
 
+        .gift-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 8, 18, 0.68);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            padding: 14px;
+        }
+
+        .gift-modal-overlay.open {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .gift-modal {
+            width: min(520px, 100%);
+            max-height: 86vh;
+            overflow: auto;
+            border-radius: 18px;
+            border: 1px solid rgba(147, 184, 255, 0.38);
+            background: linear-gradient(180deg, rgba(39, 54, 91, 0.98), rgba(28, 39, 66, 0.98));
+            box-shadow: 0 22px 48px rgba(1, 6, 18, 0.56);
+            padding: 14px;
+            animation: slideUp 0.22s ease;
+        }
+
+        .gift-modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .gift-modal-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .gift-modal-image {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(142, 177, 244, 0.35);
+            background: rgba(13, 21, 38, 0.72);
+            margin-bottom: 12px;
+        }
+
+        .gift-modal-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gift-modal-info {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .gift-modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -458,6 +530,21 @@
     </div>
 </div>
 
+<div id="gift-modal-overlay" class="gift-modal-overlay">
+    <div class="gift-modal">
+        <div class="gift-modal-head">
+            <h4 id="gift-modal-title" class="gift-modal-title">Подарок</h4>
+            <button id="gift-modal-close-btn" type="button">Закрыть</button>
+        </div>
+        <div id="gift-modal-image" class="gift-modal-image"></div>
+        <div id="gift-modal-info" class="gift-modal-info"></div>
+        <div class="gift-modal-actions">
+            <button id="gift-modal-select-btn" type="button">Выбрать</button>
+            <button id="gift-modal-withdraw-btn" type="button">Вывод</button>
+        </div>
+    </div>
+</div>
+
 <nav class="tab-bar">
     <button class="tab-item active" data-tab="inventory">Склад</button>
     <button class="tab-item" data-tab="market">Витрина</button>
@@ -490,6 +577,7 @@
             background: ""
         },
         activeFilterType: "",
+        activeGiftIndex: -1,
         traitCatalog: {
             model: [],
             pattern: [],
@@ -540,6 +628,20 @@
     document.getElementById("filter-picker-close-btn").addEventListener("click", closeFilterPicker);
     document.getElementById("filter-picker-search").addEventListener("input", renderFilterPickerList);
     document.getElementById("filter-picker-reset-btn").addEventListener("click", resetActiveFilter);
+    document.getElementById("gift-modal-close-btn").addEventListener("click", closeGiftModal);
+    document.getElementById("gift-modal-select-btn").addEventListener("click", () => {
+        if (state.activeGiftIndex >= 0) {
+            prefillGift(state.activeGiftIndex);
+            closeGiftModal();
+        }
+    });
+    document.getElementById("gift-modal-withdraw-btn").addEventListener("click", () => {
+        const gift = state.gifts[state.activeGiftIndex];
+        if (!gift) return;
+        const pretty = prettifyGift(gift);
+        withdrawGift(Number(gift?.id || 0), pretty.title);
+        closeGiftModal();
+    });
 
     function switchTab(tab, el) {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
@@ -576,10 +678,11 @@
                 ${pretty.pattern ? `<p class="gift-sub">Узор: <b>${escapeHtml(pretty.pattern)}</b></p>` : ""}
                 ${pretty.background ? `<p class="gift-sub">Фон: <b>${escapeHtml(pretty.background)}</b></p>` : ""}
                 <div class="gift-actions">
-                    <button onclick="prefillGift(${idx})">Выбрать</button>
-                    <button onclick="withdrawGift(${Number(gift?.id || 0)}, '${escapeHtml(pretty.title)}')">Вывод</button>
+                    <button onclick="event.stopPropagation();prefillGift(${idx})">Выбрать</button>
+                    <button onclick="event.stopPropagation();withdrawGift(${Number(gift?.id || 0)}, '${escapeHtml(pretty.title)}')">Вывод</button>
                 </div>
             `;
+            card.addEventListener("click", () => openGiftModal(idx));
             grid.appendChild(card);
 
             const option = document.createElement("option");
@@ -864,6 +967,31 @@
         document.getElementById("gift-select").value = gift.rawName;
         tg?.HapticFeedback?.selectionChanged?.();
         softHaptic("light");
+    }
+
+    function openGiftModal(index) {
+        const gift = state.gifts[index];
+        if (!gift) return;
+        state.activeGiftIndex = index;
+        const pretty = prettifyGift(gift);
+        document.getElementById("gift-modal-title").textContent = pretty.title || "Подарок";
+        document.getElementById("gift-modal-image").innerHTML = pretty.image
+            ? `<img src="${escapeHtml(resolveImageUrl(pretty.image))}" alt="${escapeHtml(pretty.title)}" />`
+            : `<div class="gift-preview-fallback" style="display:flex;align-items:center;justify-content:center;height:100%;">${pretty.icon}</div>`;
+        const info = [];
+        if (pretty.model) info.push(`Модель: <b>${escapeHtml(pretty.model)}</b>`);
+        if (pretty.pattern) info.push(`Узор: <b>${escapeHtml(pretty.pattern)}</b>`);
+        if (pretty.background) info.push(`Фон: <b>${escapeHtml(pretty.background)}</b>`);
+        if (gift?.fragment_slug) info.push(`Slug: <b>${escapeHtml(gift.fragment_slug)}</b>`);
+        document.getElementById("gift-modal-info").innerHTML = info.length
+            ? info.map((line) => `<div>${line}</div>`).join("")
+            : '<div class="empty" style="text-align:left;padding:0;">Нет доп. информации</div>';
+        document.getElementById("gift-modal-overlay").classList.add("open");
+    }
+
+    function closeGiftModal() {
+        document.getElementById("gift-modal-overlay").classList.remove("open");
+        state.activeGiftIndex = -1;
     }
 
     async function createListingFromForm() {
