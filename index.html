@@ -343,17 +343,14 @@
                 <input id="market-search-input" type="text" maxlength="64" placeholder="Поиск: подарок или пользователь">
             </div>
             <div class="row" style="margin-bottom:8px;">
-                <select id="market-model-filter">
-                    <option value="">Все модели</option>
-                </select>
+                <input id="market-model-filter" type="text" list="market-model-options" maxlength="64" placeholder="Фильтр по модели">
+                <datalist id="market-model-options"></datalist>
             </div>
             <div class="row" style="margin-bottom:8px;">
-                <select id="market-pattern-filter">
-                    <option value="">Все узоры</option>
-                </select>
-                <select id="market-background-filter">
-                    <option value="">Все фоны</option>
-                </select>
+                <input id="market-pattern-filter" type="text" list="market-pattern-options" maxlength="64" placeholder="Фильтр по узору">
+                <datalist id="market-pattern-options"></datalist>
+                <input id="market-background-filter" type="text" list="market-background-options" maxlength="64" placeholder="Фильтр по фону">
+                <datalist id="market-background-options"></datalist>
             </div>
             <div id="market-list"></div>
         </div>
@@ -437,15 +434,15 @@
         state.marketSearch = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
-    document.getElementById("market-model-filter").addEventListener("change", (event) => {
+    document.getElementById("market-model-filter").addEventListener("input", (event) => {
         state.marketFilters.model = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
-    document.getElementById("market-pattern-filter").addEventListener("change", (event) => {
+    document.getElementById("market-pattern-filter").addEventListener("input", (event) => {
         state.marketFilters.pattern = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
-    document.getElementById("market-background-filter").addEventListener("change", (event) => {
+    document.getElementById("market-background-filter").addEventListener("input", (event) => {
         state.marketFilters.background = String(event?.target?.value || "").trim().toLowerCase();
         renderMarket();
     });
@@ -514,9 +511,9 @@
             const patternValues = [give.pattern, want.pattern].map((v) => String(v || "").toLowerCase());
             const backgroundValues = [give.background, want.background].map((v) => String(v || "").toLowerCase());
 
-            if (filters.model && !modelValues.includes(filters.model)) return false;
-            if (filters.pattern && !patternValues.includes(filters.pattern)) return false;
-            if (filters.background && !backgroundValues.includes(filters.background)) return false;
+            if (filters.model && !modelValues.some((v) => v.includes(filters.model))) return false;
+            if (filters.pattern && !patternValues.some((v) => v.includes(filters.pattern))) return false;
+            if (filters.background && !backgroundValues.some((v) => v.includes(filters.background))) return false;
 
             if (!query) return true;
             const haystack = [
@@ -570,21 +567,15 @@
         });
     }
 
-    function fillFilterSelect(selectId, values, placeholder) {
-        const select = document.getElementById(selectId);
-        const currentValue = String(select?.value || "").trim().toLowerCase();
-        select.innerHTML = `<option value="">${placeholder}</option>`;
+    function fillFilterDatalist(datalistId, values) {
+        const datalist = document.getElementById(datalistId);
+        if (!datalist) return;
+        datalist.innerHTML = "";
         values.forEach((value) => {
             const option = document.createElement("option");
-            option.value = value.toLowerCase();
-            option.textContent = value;
-            select.appendChild(option);
+            option.value = value;
+            datalist.appendChild(option);
         });
-        if (currentValue && values.some((v) => v.toLowerCase() === currentValue)) {
-            select.value = currentValue;
-        } else {
-            select.value = "";
-        }
     }
 
     function refreshMarketFilterOptions() {
@@ -608,13 +599,9 @@
         });
 
         const sortFn = (a, b) => a.localeCompare(b, "ru");
-        fillFilterSelect("market-model-filter", Array.from(modelSet).sort(sortFn), "Все модели");
-        fillFilterSelect("market-pattern-filter", Array.from(patternSet).sort(sortFn), "Все узоры");
-        fillFilterSelect("market-background-filter", Array.from(backgroundSet).sort(sortFn), "Все фоны");
-
-        state.marketFilters.model = String(document.getElementById("market-model-filter").value || "");
-        state.marketFilters.pattern = String(document.getElementById("market-pattern-filter").value || "");
-        state.marketFilters.background = String(document.getElementById("market-background-filter").value || "");
+        fillFilterDatalist("market-model-options", Array.from(modelSet).sort(sortFn));
+        fillFilterDatalist("market-pattern-options", Array.from(patternSet).sort(sortFn));
+        fillFilterDatalist("market-background-options", Array.from(backgroundSet).sort(sortFn));
     }
 
     function renderOrders() {
