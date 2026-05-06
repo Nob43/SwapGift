@@ -943,7 +943,10 @@
         state.traitCatalog.model = Array.from(modelSet).sort(sortFn);
         state.traitCatalog.pattern = Array.from(patternSet).sort(sortFn);
         state.traitCatalog.background = Array.from(backgroundSet).sort(sortFn);
-        state.traitIcons.model = modelIconMap;
+        state.traitIcons.model = {
+            ...(state.traitIcons.model || {}),
+            ...modelIconMap
+        };
         refreshFilterTriggerLabels();
     }
 
@@ -1043,6 +1046,7 @@
             state.traitCatalog.model = Array.isArray(data.models) ? data.models : [];
             state.traitCatalog.pattern = Array.isArray(data.patterns) ? data.patterns : [];
             state.traitCatalog.background = Array.isArray(data.backgrounds) ? data.backgrounds : [];
+            state.traitIcons.model = data?.model_icons && typeof data.model_icons === "object" ? data.model_icons : {};
         } catch (err) {
             console.error(err);
         } finally {
