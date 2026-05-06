@@ -443,6 +443,10 @@
             display: block;
         }
 
+        .picker-item-icon.swatch {
+            border-radius: 4px;
+        }
+
         .picker-item-label {
             min-width: 0;
             overflow: hidden;
@@ -723,7 +727,8 @@
             background: []
         },
         traitIcons: {
-            model: {}
+            model: {},
+            background: {}
         }
     };
 
@@ -1009,12 +1014,14 @@
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className = `picker-item${item.value.toLowerCase() === current ? " active" : ""}`;
-            if (type === "model" && item.value) {
+            if ((type === "model" || type === "background") && item.value) {
                 const wrap = document.createElement("span");
                 wrap.className = "picker-item-content";
                 const iconWrap = document.createElement("span");
-                iconWrap.className = "picker-item-icon";
-                const iconSrc = state.traitIcons.model[item.value.toLowerCase()];
+                iconWrap.className = `picker-item-icon${type === "background" ? " swatch" : ""}`;
+                const iconSrc = type === "model"
+                    ? state.traitIcons.model[item.value.toLowerCase()]
+                    : state.traitIcons.background[item.value.toLowerCase()];
                 if (iconSrc) {
                     const img = document.createElement("img");
                     img.src = resolveImageUrl(iconSrc);
@@ -1022,7 +1029,7 @@
                     img.loading = "lazy";
                     iconWrap.appendChild(img);
                 } else {
-                    iconWrap.textContent = "🎁";
+                    iconWrap.textContent = type === "model" ? "🎁" : "■";
                 }
                 const text = document.createElement("span");
                 text.className = "picker-item-label";
@@ -1047,6 +1054,7 @@
             state.traitCatalog.pattern = Array.isArray(data.patterns) ? data.patterns : [];
             state.traitCatalog.background = Array.isArray(data.backgrounds) ? data.backgrounds : [];
             state.traitIcons.model = data?.model_icons && typeof data.model_icons === "object" ? data.model_icons : {};
+            state.traitIcons.background = data?.background_icons && typeof data.background_icons === "object" ? data.background_icons : {};
         } catch (err) {
             console.error(err);
         } finally {
