@@ -710,6 +710,13 @@
     const bootOverlayEl = document.getElementById("boot-overlay");
     document.body.classList.add("boot-loading");
 
+    async function apiFetch(url, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const initData = String(tg?.initData || "").trim();
+        if (initData) headers["X-Telegram-Init-Data"] = initData;
+        return fetch(url, { ...options, headers });
+    }
+
     const state = {
         gifts: [],
         listings: [],
@@ -1049,7 +1056,7 @@
 
     async function loadTraitCatalog() {
         try {
-            const response = await fetch(`${BASE_URL}/catalog/traits`);
+            const response = await apiFetch(`${BASE_URL}/catalog/traits`);
             if (!response.ok) throw new Error("traits API unavailable");
             const data = await response.json();
             state.traitCatalog.model = Array.isArray(data.models) ? data.models : [];
@@ -1192,12 +1199,10 @@
         if (exists) return tg?.showAlert("Этот подарок уже опубликован в витрине");
 
         try {
-            const response = await fetch(`${BASE_URL}/offers`, {
+            const response = await apiFetch(`${BASE_URL}/offers`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    owner_id: userId,
-                    owner_name: userLabel,
                     gift_name: giftName,
                     wanted_gift: wantedGift
                 })
@@ -1224,13 +1229,11 @@
         }
 
         try {
-            const response = await fetch(`${BASE_URL}/exchanges`, {
+            const response = await apiFetch(`${BASE_URL}/exchanges`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     offer_id: listing.id,
-                    requester_id: userId,
-                    requester_name: userLabel,
                     fee_per_user_ton: FEE_PER_PARTICIPANT_TON
                 })
             });
@@ -1256,10 +1259,10 @@
 
     async function removeOffer(offerId) {
         try {
-            const response = await fetch(`${BASE_URL}/offers/${offerId}/remove`, {
+            const response = await apiFetch(`${BASE_URL}/offers/${offerId}/remove`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ actor_id: userId })
+                body: JSON.stringify({})
             });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || "cannot remove offer");
@@ -1296,10 +1299,10 @@
         if (!proceed) return;
 
         try {
-            const response = await fetch(`${BASE_URL}/withdraw_gift`, {
+            const response = await apiFetch(`${BASE_URL}/withdraw_gift`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId, gift_id: giftId })
+                body: JSON.stringify({ gift_id: giftId })
             });
             const data = await response.json();
             if (!response.ok || !data.ok) {
@@ -1321,10 +1324,10 @@
 
     async function changeExchangeStatus(exchangeId, action) {
         try {
-            const response = await fetch(`${BASE_URL}/exchanges/${exchangeId}/status`, {
+            const response = await apiFetch(`${BASE_URL}/exchanges/${exchangeId}/status`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ actor_id: userId, action })
+                body: JSON.stringify({ action })
             });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || "cannot update exchange");
@@ -1339,7 +1342,7 @@
 
     async function loadInventory() {
         try {
-            const response = await fetch(`${BASE_URL}/get_gifts?user_id=${userId}`);
+            const response = await apiFetch(`${BASE_URL}/get_gifts`);
             if (!response.ok) throw new Error("Inventory API unavailable");
             const data = await response.json();
             state.gifts = Array.isArray(data.gifts) ? data.gifts : [];
@@ -1353,7 +1356,7 @@
 
     async function loadWithdrawals() {
         try {
-            const response = await fetch(`${BASE_URL}/withdrawals?user_id=${userId}`);
+            const response = await apiFetch(`${BASE_URL}/withdrawals`);
             if (!response.ok) throw new Error("withdrawals API unavailable");
             const data = await response.json();
             state.withdrawals = Array.isArray(data.withdrawals) ? data.withdrawals : [];
@@ -1366,7 +1369,7 @@
 
     async function loadOffers() {
         try {
-            const response = await fetch(`${BASE_URL}/offers`);
+            const response = await apiFetch(`${BASE_URL}/offers`);
             if (!response.ok) throw new Error("offers API unavailable");
             const data = await response.json();
             state.listings = Array.isArray(data.offers) ? data.offers : [];
@@ -1379,7 +1382,7 @@
 
     async function loadMyExchanges() {
         try {
-            const response = await fetch(`${BASE_URL}/exchanges?user_id=${userId}`);
+            const response = await apiFetch(`${BASE_URL}/exchanges`);
             if (!response.ok) throw new Error("exchanges API unavailable");
             const data = await response.json();
             state.orders = Array.isArray(data.exchanges) ? data.exchanges : [];
