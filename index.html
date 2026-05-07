@@ -1518,9 +1518,11 @@
     }
 
     async function initializeApp() {
+        const minBootLoadingMs = 6000;
+        const startedAt = Date.now();
         const bootTimeout = window.setTimeout(() => {
             finishBootLoading();
-        }, 7000);
+        }, 15000);
         try {
             await Promise.allSettled([
                 loadOffers(),
@@ -1529,6 +1531,10 @@
                 loadWithdrawals(),
                 loadTraitCatalog()
             ]);
+            const elapsed = Date.now() - startedAt;
+            if (elapsed < minBootLoadingMs) {
+                await new Promise((resolve) => window.setTimeout(resolve, minBootLoadingMs - elapsed));
+            }
         } finally {
             window.clearTimeout(bootTimeout);
             finishBootLoading();
