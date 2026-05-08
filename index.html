@@ -324,15 +324,58 @@
         }
 
         .listing-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: grid;
+            gap: 8px;
             margin-bottom: 8px;
         }
 
         .price {
             font-weight: 700;
             color: #dbe8ff;
+        }
+
+        .market-gift-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .market-gift-thumb {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid rgba(128, 159, 224, 0.35);
+            background: rgba(17, 27, 49, 0.72);
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 38px;
+        }
+
+        .market-gift-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .market-gift-meta {
+            min-width: 0;
+        }
+
+        .market-gift-title {
+            font-weight: 700;
+            color: #e8f0ff;
+            line-height: 1.2;
+        }
+
+        .market-gift-desc {
+            margin-top: 2px;
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.3;
+            word-break: break-word;
         }
 
         .badge {
@@ -937,12 +980,28 @@
         filtered.forEach((item) => {
             const give = prettifyGift(item.gift_name);
             const want = prettifyGift(item.wanted_gift);
+            const giveNum = String(give.rawName || "").match(/-(\d+)\b/)?.[1] || "";
+            const wantNum = String(want.rawName || "").match(/-(\d+)\b/)?.[1] || "";
+            const giveTitle = giveNum ? `${give.title} #${giveNum}` : give.title;
+            const wantTitle = wantNum ? `${want.title} #${wantNum}` : want.title;
+            const giveDesc = [give.model, give.pattern, give.background].filter(Boolean).join(" · ");
             const div = document.createElement("div");
             div.className = "listing";
             div.innerHTML = `
                 <div class="listing-top">
-                    <div><b>${give.icon} Отдает: ${escapeHtml(give.title)}</b></div>
-                    <div class="price">${want.icon} Хочет: ${escapeHtml(want.title)}</div>
+                    <div class="market-gift-line">
+                        <span class="market-gift-thumb">
+                            ${give.image
+                                ? `<img src="${escapeHtml(resolveImageUrl(give.image))}" alt="${escapeHtml(giveTitle)}" />`
+                                : `<span>${give.icon}</span>`
+                            }
+                        </span>
+                        <div class="market-gift-meta">
+                            <div class="market-gift-title">🎁 Отдает: ${escapeHtml(giveTitle)}</div>
+                            ${giveDesc ? `<div class="market-gift-desc">${escapeHtml(giveDesc)}</div>` : ""}
+                        </div>
+                    </div>
+                    <div class="market-gift-title price">🎁 Хочет: ${escapeHtml(wantTitle)}</div>
                 </div>
                 <div class="row">
                     <span class="badge">user: ${item.owner_name}</span>
