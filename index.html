@@ -18,6 +18,9 @@
             --primary-2: #9b8cff;
             --green: #50d9b7;
             --danger: #ff889a;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --radius-xl: 22px;
         }
 
         * { box-sizing: border-box; }
@@ -50,7 +53,7 @@
                         linear-gradient(180deg, #271b44, #17112d);
             opacity: 1;
             visibility: visible;
-            transition: opacity 0.28s ease, visibility 0.28s ease;
+            transition: opacity 0.42s ease, visibility 0.42s ease;
         }
 
         .boot-overlay.hidden {
@@ -62,7 +65,7 @@
         .boot-card {
             width: min(270px, calc(100vw - 44px));
             padding: 4px 8px 8px;
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
             text-align: center;
             border: none;
             background: transparent;
@@ -110,8 +113,8 @@
 
         .boot-progress {
             margin: 22px auto 0;
-            width: 66%;
-            height: 10px;
+            width: 64%;
+            height: 9px;
             border-radius: 999px;
             overflow: hidden;
             border: none;
@@ -126,7 +129,7 @@
             border-radius: 999px;
             background: linear-gradient(90deg, rgba(103, 170, 255, 0.95), rgba(131, 118, 255, 0.94));
             box-shadow: 0 0 10px rgba(124, 166, 255, 0.34);
-            animation: bootLine 1.2s ease-in-out infinite;
+            animation: bootLine 1.45s ease-in-out infinite;
         }
 
         .app {
@@ -175,16 +178,19 @@
             padding: 14px 12px;
         }
 
-        .tab-content.active { display: block; }
+        .tab-content.active {
+            display: block;
+            animation: tabReveal 0.28s ease both;
+        }
 
         .card {
             background: linear-gradient(180deg, rgba(39, 54, 91, 0.9), rgba(32, 44, 74, 0.92));
             border: 1px solid rgba(125, 154, 218, 0.24);
-            border-radius: 18px;
+            border-radius: var(--radius-xl);
             padding: 13px;
             margin-bottom: 12px;
             box-shadow: 0 12px 28px rgba(2, 8, 19, 0.32);
-            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+            transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
         }
 
         .card:hover {
@@ -210,9 +216,9 @@
         .gift-item {
             border: 1px solid rgba(125, 156, 222, 0.22);
             background: linear-gradient(180deg, rgba(34, 48, 83, 0.96), rgba(29, 40, 69, 0.96));
-            border-radius: 14px;
+            border-radius: var(--radius-lg);
             padding: 10px;
-            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.26s ease, border-color 0.26s ease, box-shadow 0.26s ease;
         }
 
         .gift-item:hover {
@@ -224,7 +230,7 @@
         .gift-preview {
             width: 100%;
             aspect-ratio: 1 / 1;
-            border-radius: 12px;
+            border-radius: var(--radius-md);
             border: 1px solid rgba(140, 175, 239, 0.28);
             background: rgba(18, 27, 49, 0.74);
             display: flex;
@@ -275,14 +281,14 @@
 
         input, select, button {
             width: 100%;
-            border-radius: 12px;
+            border-radius: var(--radius-md);
             border: 1px solid rgba(126, 158, 224, 0.3);
             background: var(--surface);
             color: var(--text);
             padding: 10px 11px;
             font-size: 13px;
             outline: none;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, transform 0.1s ease;
+            transition: border-color 0.24s ease, box-shadow 0.24s ease, background-color 0.24s ease, transform 0.14s ease;
         }
 
         input::placeholder { color: #a9b7d6; }
@@ -296,7 +302,7 @@
             background: linear-gradient(180deg, #324978, #2a3f68);
             border-color: rgba(129, 170, 245, 0.46);
             box-shadow: 0 8px 16px rgba(9, 16, 30, 0.26);
-            transition: transform 0.1s ease, filter 0.18s ease, box-shadow 0.18s ease;
+            transition: transform 0.14s ease, filter 0.24s ease, box-shadow 0.24s ease;
         }
         button:active { transform: translateY(1px) scale(0.99); }
         button:hover { filter: brightness(1.06); box-shadow: 0 12px 20px rgba(9, 16, 30, 0.36); }
@@ -317,10 +323,17 @@
 
         .listing {
             border: 1px solid rgba(130, 160, 226, 0.2);
-            border-radius: 14px;
+            border-radius: var(--radius-lg);
             padding: 10px;
             background: linear-gradient(180deg, rgba(35, 49, 84, 0.95), rgba(28, 39, 66, 0.97));
             margin-bottom: 8px;
+            transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        }
+
+        .listing:hover {
+            transform: translateY(-1px);
+            border-color: rgba(156, 194, 255, 0.38);
+            box-shadow: 0 14px 24px rgba(5, 11, 22, 0.34);
         }
 
         .listing-top {
@@ -338,7 +351,7 @@
         .market-gift-line {
             border: 1px solid rgba(128, 159, 224, 0.26);
             background: rgba(20, 29, 50, 0.58);
-            border-radius: 12px;
+            border-radius: var(--radius-md);
             padding: 8px;
             min-width: 0;
         }
@@ -346,7 +359,7 @@
         .market-gift-thumb {
             width: 100%;
             aspect-ratio: 1 / 1;
-            border-radius: 10px;
+            border-radius: 12px;
             border: 1px solid rgba(128, 159, 224, 0.35);
             background: rgba(17, 27, 49, 0.72);
             overflow: hidden;
@@ -417,7 +430,7 @@
             background: transparent;
             color: var(--muted);
             padding: 10px 5px;
-            border-radius: 12px;
+            border-radius: var(--radius-md);
             font-size: 12px;
         }
 
@@ -449,7 +462,7 @@
 
         .picker-overlay.open {
             display: flex;
-            animation: fadeIn 0.2s ease;
+            animation: fadeIn 0.26s ease;
         }
 
         .picker-panel {
@@ -654,6 +667,11 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
+        @keyframes tabReveal {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @keyframes bootLine {
             from { transform: translateX(-115%); }
             to { transform: translateX(255%); }
@@ -789,7 +807,27 @@
     const userId = user?.id || 0;
     const userLabel = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() : "Гость";
 
-    const BASE_URL = "https://unpausing-tai-encaustically.ngrok-free.dev";
+    function normalizeBaseUrl(raw) {
+        return String(raw || "").trim().replace(/\/+$/, "");
+    }
+
+    function resolveApiBaseUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const queryApi = normalizeBaseUrl(params.get("api"));
+        if (queryApi) {
+            try {
+                localStorage.setItem("mytradebot_api_base", queryApi);
+            } catch (err) {}
+            return queryApi;
+        }
+        try {
+            const savedApi = normalizeBaseUrl(localStorage.getItem("mytradebot_api_base"));
+            if (savedApi) return savedApi;
+        } catch (err) {}
+        return "https://unpausing-tai-encaustically.ngrok-free.dev";
+    }
+
+    const BASE_URL = resolveApiBaseUrl();
     const FEE_PER_PARTICIPANT_TON = 0.6;
     const bootOverlayEl = document.getElementById("boot-overlay");
     document.body.classList.add("boot-loading");
@@ -1215,17 +1253,18 @@
 
     function renderExchangeActions(order) {
         const isOwner = Number(order.owner_id) === Number(userId);
+        const isRequester = Number(order.requester_id) === Number(userId);
         if (order.status === "pending_owner_reply" && isOwner) {
             return `
                 <button onclick="changeExchangeStatus(${order.id}, 'accept')">Принять</button>
                 <button onclick="changeExchangeStatus(${order.id}, 'reject')">Отклонить</button>
             `;
         }
-        if (order.status === "accepted") {
-            return `<button onclick="changeExchangeStatus(${order.id}, 'to_escrow')">Передать в склад</button>`;
-        }
-        if (order.status === "in_escrow") {
-            return `<button class="success" onclick="changeExchangeStatus(${order.id}, 'complete')">Завершить</button>`;
+        if (order.status === "pending_requester_reply" && isRequester) {
+            return `
+                <button class="success" onclick="changeExchangeStatus(${order.id}, 'accept')">Подтвердить обмен</button>
+                <button onclick="changeExchangeStatus(${order.id}, 'cancel')">Отменить</button>
+            `;
         }
         return "";
     }
