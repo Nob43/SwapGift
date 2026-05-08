@@ -325,7 +325,8 @@
 
         .listing-top {
             display: grid;
-            gap: 8px;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
             margin-bottom: 8px;
         }
 
@@ -335,14 +336,16 @@
         }
 
         .market-gift-line {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
+            border: 1px solid rgba(128, 159, 224, 0.26);
+            background: rgba(20, 29, 50, 0.58);
+            border-radius: 12px;
+            padding: 8px;
+            min-width: 0;
         }
 
         .market-gift-thumb {
-            width: 38px;
-            height: 38px;
+            width: 100%;
+            aspect-ratio: 1 / 1;
             border-radius: 10px;
             border: 1px solid rgba(128, 159, 224, 0.35);
             background: rgba(17, 27, 49, 0.72);
@@ -350,7 +353,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex: 0 0 38px;
+            margin-bottom: 7px;
         }
 
         .market-gift-thumb img {
@@ -360,14 +363,12 @@
             display: block;
         }
 
-        .market-gift-meta {
-            min-width: 0;
-        }
-
         .market-gift-title {
             font-weight: 700;
             color: #e8f0ff;
             line-height: 1.2;
+            font-size: 13px;
+            word-break: break-word;
         }
 
         .market-gift-desc {
@@ -985,6 +986,7 @@
             const giveTitle = giveNum ? `${give.title} #${giveNum}` : give.title;
             const wantTitle = wantNum ? `${want.title} #${wantNum}` : want.title;
             const giveDesc = [give.model, give.pattern, give.background].filter(Boolean).join(" · ");
+            const wantDesc = [want.model, want.pattern, want.background].filter(Boolean).join(" · ");
             const div = document.createElement("div");
             div.className = "listing";
             div.innerHTML = `
@@ -996,12 +998,19 @@
                                 : `<span>${give.icon}</span>`
                             }
                         </span>
-                        <div class="market-gift-meta">
-                            <div class="market-gift-title">🎁 Отдает: ${escapeHtml(giveTitle)}</div>
-                            ${giveDesc ? `<div class="market-gift-desc">${escapeHtml(giveDesc)}</div>` : ""}
-                        </div>
+                        <div class="market-gift-title">Отдает: ${escapeHtml(giveTitle)}</div>
+                        ${giveDesc ? `<div class="market-gift-desc">${escapeHtml(giveDesc)}</div>` : ""}
                     </div>
-                    <div class="market-gift-title price">🎁 Хочет: ${escapeHtml(wantTitle)}</div>
+                    <div class="market-gift-line">
+                        <span class="market-gift-thumb">
+                            ${resolveGiftPreviewUrl(want)
+                                ? `<img src="${escapeHtml(resolveGiftPreviewUrl(want))}" alt="${escapeHtml(wantTitle)}" />`
+                                : `<span>${want.icon}</span>`
+                            }
+                        </span>
+                        <div class="market-gift-title price">Хочет: ${escapeHtml(wantTitle)}</div>
+                        ${wantDesc ? `<div class="market-gift-desc">${escapeHtml(wantDesc)}</div>` : ""}
+                    </div>
                 </div>
                 <div class="row">
                     <span class="badge">user: ${item.owner_name}</span>
