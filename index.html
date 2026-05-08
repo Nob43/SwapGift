@@ -991,8 +991,8 @@
                 <div class="listing-top">
                     <div class="market-gift-line">
                         <span class="market-gift-thumb">
-                            ${give.image
-                                ? `<img src="${escapeHtml(resolveImageUrl(give.image))}" alt="${escapeHtml(giveTitle)}" />`
+                            ${resolveGiftPreviewUrl(give)
+                                ? `<img src="${escapeHtml(resolveGiftPreviewUrl(give))}" alt="${escapeHtml(giveTitle)}" />`
                                 : `<span>${give.icon}</span>`
                             }
                         </span>
@@ -1506,6 +1506,16 @@
         if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
         if (raw.startsWith("/")) return `${BASE_URL}${raw}`;
         return `${BASE_URL}/${raw}`;
+    }
+
+    function resolveGiftPreviewUrl(prettyGift) {
+        const direct = resolveImageUrl(prettyGift?.image || "");
+        if (direct) return direct;
+        const rawName = String(prettyGift?.rawName || "").trim().toLowerCase();
+        if (/^[a-z0-9_-]+-\d+$/.test(rawName)) {
+            return `https://nft.fragment.com/gift/${rawName}.large.jpg`;
+        }
+        return "";
     }
 
     function normalizeGiftInput(giftInput) {
