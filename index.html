@@ -846,6 +846,7 @@
         listings: [],
         orders: [],
         withdrawals: [],
+        activeTab: "inventory",
         marketSearch: "",
         marketFilters: {
             model: [],
@@ -864,6 +865,9 @@
             background: {}
         }
     };
+    const REALTIME_OFFERS_INTERVAL_MS = 7000;
+    let realtimeOffersTimer = null;
+    let realtimeOffersBusy = false;
 
     const GIFT_PRESETS = [
         { match: /star.?gift.?unique/i, icon: "💎", title: "Уникальный Telegram Gift" },
@@ -928,6 +932,7 @@
         document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
         el.classList.add("active");
         document.getElementById(`tab-${tab}`).classList.add("active");
+        state.activeTab = tab;
         softHaptic("light");
     }
 
@@ -1543,11 +1548,26 @@
             if (!response.ok) throw new Error("offers API unavailable");
             const data = await response.json();
             state.listings = Array.isArray(data.offers) ? data.offers : [];
-        } catch {
-            state.listings = [];
+        } catch (err) {
+            console.error(err);
         }
         refreshMarketFilterOptions();
         renderMarket();
+    }
+
+    async function refreshOffersRealtime() {
+        if (realtimeOffersBusy || document.hidden) return;
+        realtimeOffersBusy = true;
+        try {
+            await loadOffers();
+        } finally {
+            realtimeOffersBusy = false;
+        }
+    }
+
+    function startRealtimeOffersUpdates() {
+        if (realtimeOffersTimer) window.clearInterval(realtimeOffersTimer);
+        realtimeOffersTimer = window.setInterval(refreshOffersRealtime, REALTIME_OFFERS_INTERVAL_MS);
     }
 
     async function loadMyExchanges() {
@@ -1712,8 +1732,15 @@
         } finally {
             window.clearTimeout(bootTimeout);
             finishBootLoading();
+            startRealtimeOffersUpdates();
         }
     }
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            refreshOffersRealtime();
+        }
+    });
 
     initializeApp();
 </script>
