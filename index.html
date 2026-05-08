@@ -89,15 +89,17 @@
         }
 
         .boot-pepe-image {
-            width: 120px;
-            height: 120px;
-            margin: 10px auto 2px;
-            border-radius: 16px;
+            width: 170px;
+            height: 170px;
+            margin: 8px auto 0;
+            border-radius: 22px;
             object-fit: cover;
+            object-position: center 48%;
             border: 1px solid rgba(120, 255, 170, 0.3);
             box-shadow: 0 10px 24px rgba(2, 24, 12, 0.42);
             display: block;
             filter: hue-rotate(115deg) saturate(1.45) brightness(0.95);
+            transform: scale(1.26);
         }
 
         .boot-subtitle {
@@ -624,13 +626,11 @@
 <body>
 <div id="boot-overlay" class="boot-overlay">
     <div class="boot-card">
-        <p class="boot-pepe">PLUS PEPE</p>
         <img
             class="boot-pepe-image"
             src="https://nft.fragment.com/gift/plushpepe-1515.large.jpg"
             alt="Plush Pepe"
         />
-        <p class="boot-subtitle">Загружаем инвентарь и витрину...</p>
         <div class="boot-progress" aria-hidden="true"><span></span></div>
     </div>
 </div>
