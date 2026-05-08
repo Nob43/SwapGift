@@ -848,9 +848,9 @@
         withdrawals: [],
         marketSearch: "",
         marketFilters: {
-            model: "",
-            pattern: "",
-            background: ""
+            model: [],
+            pattern: [],
+            background: []
         },
         activeFilterType: "",
         activeGiftIndex: -1,
@@ -988,9 +988,13 @@
             const patternValues = [give.pattern, want.pattern].map((v) => String(v || "").toLowerCase());
             const backgroundValues = [give.background, want.background].map((v) => String(v || "").toLowerCase());
 
-            if (filters.model && !modelValues.some((v) => v.includes(filters.model))) return false;
-            if (filters.pattern && !patternValues.some((v) => v.includes(filters.pattern))) return false;
-            if (filters.background && !backgroundValues.some((v) => v.includes(filters.background))) return false;
+            const modelFilters = Array.isArray(filters.model) ? filters.model : [];
+            const patternFilters = Array.isArray(filters.pattern) ? filters.pattern : [];
+            const backgroundFilters = Array.isArray(filters.background) ? filters.background : [];
+
+            if (modelFilters.length && !modelFilters.some((f) => modelValues.some((v) => v.includes(f)))) return false;
+            if (patternFilters.length && !patternFilters.some((f) => patternValues.some((v) => v.includes(f)))) return false;
+            if (backgroundFilters.length && !backgroundFilters.some((f) => backgroundValues.some((v) => v.includes(f)))) return false;
 
             if (!query) return true;
             const haystack = [
@@ -1113,9 +1117,15 @@
     }
 
     function refreshFilterTriggerLabels() {
-        const modelText = state.marketFilters.model ? `Модель: ${state.marketFilters.model}` : "Модель: Все";
-        const patternText = state.marketFilters.pattern ? `Узор: ${state.marketFilters.pattern}` : "Узор: Все";
-        const backgroundText = state.marketFilters.background ? `Фон: ${state.marketFilters.background}` : "Фон: Все";
+        const summarize = (prefix, values) => {
+            const arr = Array.isArray(values) ? values : [];
+            if (!arr.length) return `${prefix}: Все`;
+            if (arr.length === 1) return `${prefix}: ${arr[0]}`;
+            return `${prefix}: ${arr.length} выбрано`;
+        };
+        const modelText = summarize("Модель", state.marketFilters.model);
+        const patternText = summarize("Узор", state.marketFilters.pattern);
+        const backgroundText = summarize("Фон", state.marketFilters.background);
         document.getElementById("market-model-filter-btn").textContent = modelText;
         document.getElementById("market-pattern-filter-btn").textContent = patternText;
         document.getElementById("market-background-filter-btn").textContent = backgroundText;
@@ -1138,10 +1148,19 @@
     function applyFilterValue(value) {
         const type = state.activeFilterType;
         if (!type) return;
-        state.marketFilters[type] = String(value || "").trim().toLowerCase();
+        const normalized = String(value || "").trim().toLowerCase();
+        if (!normalized) {
+            state.marketFilters[type] = [];
+        } else {
+            const current = Array.isArray(state.marketFilters[type]) ? [...state.marketFilters[type]] : [];
+            const idx = current.indexOf(normalized);
+            if (idx >= 0) current.splice(idx, 1);
+            else current.push(normalized);
+            state.marketFilters[type] = current;
+        }
         refreshFilterTriggerLabels();
         renderMarket();
-        closeFilterPicker();
+        renderFilterPickerList();
     }
 
     function resetActiveFilter() {
@@ -1156,7 +1175,7 @@
             return;
         }
         const query = String(document.getElementById("filter-picker-search").value || "").trim().toLowerCase();
-        const current = String(state.marketFilters[type] || "").toLowerCase();
+        const currentValues = Array.isArray(state.marketFilters[type]) ? state.marketFilters[type] : [];
         const values = (state.traitCatalog[type] || [])
             .map((v) => String(v || "").trim())
             .filter((v) => v && (!query || v.toLowerCase().includes(query)));
@@ -1170,7 +1189,9 @@
         allValues.forEach((item) => {
             const btn = document.createElement("button");
             btn.type = "button";
-            btn.className = `picker-item${item.value.toLowerCase() === current ? " active" : ""}`;
+            const normalized = item.value.toLowerCase();
+            const isActive = normalized ? currentValues.includes(normalized) : currentValues.length === 0;
+            btn.className = `picker-item${isActive ? " active" : ""}`;
             if ((type === "model" || type === "background") && item.value) {
                 const wrap = document.createElement("span");
                 wrap.className = "picker-item-content";
