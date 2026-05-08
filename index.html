@@ -452,7 +452,7 @@
             border-top: 1px solid rgba(124, 154, 219, 0.2);
             backdrop-filter: blur(16px);
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 2px;
             padding: 7px 6px 10px;
         }
@@ -689,39 +689,7 @@
             gap: 8px;
         }
 
-        .ton-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 11, 22, 0.62);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1250;
-            padding: 14px;
-        }
-
-        .ton-modal-overlay.open {
-            display: flex;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .ton-modal {
-            width: min(460px, 100%);
-            border-radius: 18px;
-            border: 1px solid rgba(136, 171, 240, 0.35);
-            background: linear-gradient(180deg, rgba(37, 52, 88, 0.98), rgba(28, 40, 67, 0.98));
-            box-shadow: 0 26px 52px rgba(4, 10, 24, 0.5);
-            padding: 12px;
-            animation: slideUp 0.22s ease;
-        }
-
-        .ton-modal h4 {
-            margin: 0 0 10px;
-            font-size: 16px;
-        }
-
-        .ton-modal .muted {
+        .ton-topup-card .muted {
             color: var(--muted);
             font-size: 12px;
             margin: 0 0 10px;
@@ -832,6 +800,19 @@
             <div id="orders-list"></div>
         </div>
     </section>
+
+    <section id="tab-topup" class="tab-content">
+        <div class="card ton-topup-card">
+            <h3 class="card-title">Пополнение TON</h3>
+            <p class="muted">Введите сумму TON и отправьте заявку на пополнение.</p>
+            <div class="row">
+                <input id="ton-topup-amount-input" type="number" min="0.01" step="0.01" placeholder="Например: 0.5">
+            </div>
+            <div class="row" style="margin-top:10px;">
+                <button id="ton-topup-submit-btn" class="primary" type="button">Пополнить</button>
+            </div>
+        </div>
+    </section>
 </div>
 
 <div id="filter-picker-overlay" class="picker-overlay">
@@ -866,27 +847,11 @@
     </div>
 </div>
 
-<div id="ton-modal-overlay" class="ton-modal-overlay">
-    <div class="ton-modal">
-        <h4>Пополнение TON кошелька</h4>
-        <p class="muted">Введите сумму в TON. Будет создана заявка на пополнение.</p>
-        <div class="row">
-            <input id="ton-topup-amount-input" type="number" min="0.01" step="0.01" placeholder="Например: 0.5">
-        </div>
-        <div class="row" style="margin-top:8px;">
-            <input id="ton-topup-note-input" type="text" maxlength="120" placeholder="Комментарий (необязательно)">
-        </div>
-        <div class="row" style="margin-top:10px;">
-            <button id="ton-topup-submit-btn" class="primary" type="button">Отправить заявку</button>
-            <button id="ton-topup-close-btn" type="button">Закрыть</button>
-        </div>
-    </div>
-</div>
-
 <nav class="tab-bar">
     <button class="tab-item active" data-tab="inventory">Склад</button>
     <button class="tab-item" data-tab="market">Витрина</button>
     <button class="tab-item" data-tab="orders">Обмены</button>
+    <button class="tab-item" data-tab="topup">TON</button>
 </nav>
 
 <script>
@@ -1020,8 +985,7 @@
         withdrawGift(Number(gift?.id || 0), pretty.title);
         closeGiftModal();
     });
-    document.getElementById("ton-topup-open-btn").addEventListener("click", openTonTopupModal);
-    document.getElementById("ton-topup-close-btn").addEventListener("click", closeTonTopupModal);
+    document.getElementById("ton-topup-open-btn").addEventListener("click", openTonTopupPage);
     document.getElementById("ton-topup-submit-btn").addEventListener("click", submitTonTopupRequest);
 
     function switchTab(tab, el) {
@@ -1703,17 +1667,14 @@
         renderTonWalletQuick();
     }
 
-    function openTonTopupModal() {
-        document.getElementById("ton-modal-overlay").classList.add("open");
-    }
-
-    function closeTonTopupModal() {
-        document.getElementById("ton-modal-overlay").classList.remove("open");
+    function openTonTopupPage() {
+        const btn = document.querySelector('.tab-item[data-tab="topup"]');
+        if (!btn) return;
+        switchTab("topup", btn);
     }
 
     async function submitTonTopupRequest() {
         const amountRaw = String(document.getElementById("ton-topup-amount-input").value || "").trim();
-        const note = String(document.getElementById("ton-topup-note-input").value || "").trim();
         const amountTon = Number(amountRaw);
         if (!Number.isFinite(amountTon) || amountTon <= 0) {
             return tg?.showAlert("Введи корректную сумму TON");
@@ -1722,13 +1683,11 @@
             const response = await apiFetch(`${BASE_URL}/ton/wallet/topup_request`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount_ton: amountTon, note }),
+                body: JSON.stringify({ amount_ton: amountTon }),
             });
             const data = await response.json();
             if (!response.ok || !data?.ok) throw new Error(data?.error || "topup_request_failed");
-            closeTonTopupModal();
             document.getElementById("ton-topup-amount-input").value = "";
-            document.getElementById("ton-topup-note-input").value = "";
             tg?.showAlert(`Заявка на пополнение создана (#${data?.request?.id || "-"})`);
         } catch (err) {
             console.error(err);
