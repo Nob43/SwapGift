@@ -452,7 +452,7 @@
             border-top: 1px solid rgba(124, 154, 219, 0.2);
             backdrop-filter: blur(16px);
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 2px;
             padding: 7px 6px 10px;
         }
@@ -689,11 +689,6 @@
             gap: 8px;
         }
 
-        .ton-topup-card .muted {
-            color: var(--muted);
-            font-size: 12px;
-            margin: 0 0 10px;
-        }
 
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -804,7 +799,6 @@
     <section id="tab-topup" class="tab-content">
         <div class="card ton-topup-card">
             <h3 class="card-title">Пополнение TON</h3>
-            <p class="muted">Введите сумму TON и отправьте заявку на пополнение.</p>
             <div class="row">
                 <input id="ton-topup-amount-input" type="number" min="0.01" step="0.01" placeholder="Например: 0.5">
             </div>
@@ -851,7 +845,6 @@
     <button class="tab-item active" data-tab="inventory">Склад</button>
     <button class="tab-item" data-tab="market">Витрина</button>
     <button class="tab-item" data-tab="orders">Обмены</button>
-    <button class="tab-item" data-tab="topup">TON</button>
 </nav>
 
 <script>
@@ -1668,9 +1661,11 @@
     }
 
     function openTonTopupPage() {
-        const btn = document.querySelector('.tab-item[data-tab="topup"]');
-        if (!btn) return;
-        switchTab("topup", btn);
+        document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+        document.getElementById("tab-topup").classList.add("active");
+        state.activeTab = "topup";
+        softHaptic("light");
     }
 
     async function submitTonTopupRequest() {
