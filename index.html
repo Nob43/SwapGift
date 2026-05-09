@@ -805,6 +805,8 @@
             <div class="row" style="margin-top:10px;">
                 <button id="ton-topup-submit-btn" class="primary" type="button">Пополнить</button>
             </div>
+            <div id="ton-topup-invoice-hint" class="muted" style="margin-top:10px;"></div>
+            <div id="ton-topup-requests" style="margin-top:12px;"></div>
         </div>
     </section>
 </div>
@@ -898,6 +900,7 @@
         orders: [],
         withdrawals: [],
         tonWallet: null,
+        tonTopupRequests: [],
         activeTab: "inventory",
         marketSearch: "",
         marketFilters: {
@@ -1665,7 +1668,46 @@
         document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
         document.getElementById("tab-topup").classList.add("active");
         state.activeTab = "topup";
+        loadTonTopupRequests();
         softHaptic("light");
+    }
+
+    function renderTonTopupRequests() {
+        const listEl = document.getElementById("ton-topup-requests");
+        if (!listEl) return;
+        const items = Array.isArray(state.tonTopupRequests) ? state.tonTopupRequests : [];
+        if (!items.length) {
+            listEl.innerHTML = `<div class="muted">Заявок пока нет</div>`;
+            return;
+        }
+        listEl.innerHTML = items
+            .slice(0, 6)
+            .map((item) => {
+                const id = Number(item?.id || 0);
+                const status = escapeHtml(item?.status || "pending");
+                const ton = Number(item?.amount_ton || 0).toFixed(4);
+                const memo = escapeHtml(item?.deposit_memo || "");
+                return `
+                    <div class="listing-card" style="margin-bottom:8px;">
+                        <div class="listing-title">#${id} - ${ton} TON</div>
+                        <div class="muted">Статус: ${status}</div>
+                        <div class="muted">Memo: ${memo || "-"}</div>
+                    </div>
+                `;
+            })
+            .join("");
+    }
+
+    async function loadTonTopupRequests() {
+        try {
+            const response = await apiFetch(`${BASE_URL}/ton/wallet/topup_requests?limit=20`);
+            if (!response.ok) throw new Error("ton_topup_requests_failed");
+            const data = await response.json();
+            state.tonTopupRequests = Array.isArray(data?.items) ? data.items : [];
+            renderTonTopupRequests();
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     async function submitTonTopupRequest() {
@@ -1683,7 +1725,16 @@
             const data = await response.json();
             if (!response.ok || !data?.ok) throw new Error(data?.error || "topup_request_failed");
             document.getElementById("ton-topup-amount-input").value = "";
-            tg?.showAlert(`Заявка на пополнение создана (#${data?.request?.id || "-"})`);
+            const req = data?.request || {};
+            const address = String(req?.deposit_address || "").trim();
+            const memo = String(req?.deposit_memo || "").trim();
+            const amount = Number(req?.amount_ton || amountTon || 0).toFixed(4);
+            const hintEl = document.getElementById("ton-topup-invoice-hint");
+            if (hintEl) {
+                hintEl.innerHTML = `Отправь <b>${amount} TON</b> на адрес:<br><code>${escapeHtml(address || "-")}</code><br>Комментарий (memo): <code>${escapeHtml(memo || "-")}</code>`;
+            }
+            await loadTonTopupRequests();
+            tg?.showAlert(`Инвойс создан (#${req?.id || "-"})`);
         } catch (err) {
             console.error(err);
             tg?.showAlert(`Не удалось создать заявку: ${err.message}`);
@@ -1836,6 +1887,7 @@
                 loadInventory(),
                 loadWithdrawals(),
                 loadTonWallet(),
+                loadTonTopupRequests(),
                 loadTraitCatalog()
             ]);
         } finally {
