@@ -767,7 +767,7 @@
                 </select>
             </div>
             <div class="row" style="margin-top:8px;">
-                <input id="wanted-gift-input" type="text" maxlength="64" placeholder="Что хочу получить">
+                <input id="wanted-gift-input" type="text" maxlength="64" placeholder="Что хочу получить (приоритет для витрины)">
                 <button id="create-listing-btn" class="primary">Опубликовать</button>
             </div>
         </div>
@@ -1154,7 +1154,7 @@
                                 : `<span>${want.icon}</span>`
                             }
                         </span>
-                        <div class="market-gift-title price">Хочет: ${escapeHtml(wantTitle)}</div>
+                        <div class="market-gift-title price">Хочет (приоритет): ${escapeHtml(wantTitle)}</div>
                         ${wantDesc ? `<div class="market-gift-desc">${escapeHtml(wantDesc)}</div>` : ""}
                     </div>
                 </div>
@@ -1514,7 +1514,9 @@
         const pretty = prettifyGift(gift);
         const img = resolveGiftPreviewUrl(pretty);
         const desc = [pretty.model, pretty.pattern, pretty.background].filter(Boolean).join(" · ");
-        const badge = isMatch ? '<span class="badge" style="margin-left:6px;">под запрос</span>' : "";
+        const badge = isMatch
+            ? '<span class="badge" style="margin-left:6px;">приоритет · как в объявлении</span>'
+            : "";
         return `
             <div class="gift-item exchange-pick-item" data-gift-id="${Number(gift.id || 0)}" role="button" tabindex="0" style="cursor:pointer;">
                 <span class="gift-preview">
@@ -1545,20 +1547,18 @@
         document.getElementById("exchange-pick-subtitle").textContent = `Ты получишь: ${givePretty.title || String(listing.gift_name || "")}`;
         const hintEl = document.getElementById("exchange-pick-hint");
         const wantLabel = wantPretty.title || String(wantedRaw || "");
-        hintEl.textContent = `Выбери со склада подарок, который соответствует запросу автора: «${wantLabel}».`;
+        hintEl.textContent = `Можно предложить любой подарок со склада. Подарки с меткой «приоритет» совпадают с пожеланием автора: «${wantLabel}».`;
 
-        const matches = state.gifts.filter((g) => giftLooksLikeWantedForOffer(g, wantedRaw));
-        const pool = matches.length ? matches : state.gifts.slice();
+        const all = state.gifts.slice();
+        const priority = all.filter((g) => giftLooksLikeWantedForOffer(g, wantedRaw));
+        const rest = all.filter((g) => !giftLooksLikeWantedForOffer(g, wantedRaw));
+        const ordered = [...priority, ...rest];
         const listEl = document.getElementById("exchange-pick-list");
-        if (!pool.length) {
+        if (!ordered.length) {
             listEl.innerHTML =
                 '<div class="empty" style="grid-column:1/-1;">В инвентаре нет подарков. Сначала получи подарок на склад.</div>';
-        } else if (!matches.length) {
-            listEl.innerHTML =
-                '<div class="empty" style="grid-column:1/-1;">Нет явного совпадения с текстом запроса — показан весь склад. Сервер проверит, подходит ли выбранный подарок.</div>' +
-                pool.map((g) => buildExchangePickCard(g, false)).join("");
         } else {
-            listEl.innerHTML = pool.map((g) => buildExchangePickCard(g, true)).join("");
+            listEl.innerHTML = ordered.map((g) => buildExchangePickCard(g, giftLooksLikeWantedForOffer(g, wantedRaw))).join("");
         }
         document.getElementById("exchange-pick-overlay")?.classList.add("open");
         softHaptic("light");
@@ -1585,7 +1585,7 @@
                 const raw = data?.error || `HTTP ${response.status}`;
                 const human = {
                     requester_gift_not_in_inventory: "Нет подходящего подарка на складе под это объявление.",
-                    selected_gift_does_not_match_wanted: "Выбранный подарок не соответствует запросу в объявлении.",
+                    inventory_gift_id_required: "Выбери подарок со склада (обнови приложение).",
                     requester_gift_not_found: "Подарок не найден на складе.",
                     owner_gift_not_in_inventory: "У автора объявления больше нет подарка из объявления.",
                     cannot_exchange_with_yourself: "Нельзя обменяться самим с собой.",
