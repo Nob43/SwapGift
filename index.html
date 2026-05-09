@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GiftMatch Mini App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
     <style>
         :root {
             --bg: #11172a;
@@ -799,6 +800,12 @@
     <section id="tab-topup" class="tab-content">
         <div class="card ton-topup-card">
             <h3 class="card-title">Пополнение TON</h3>
+            <div class="row" style="margin-bottom:10px;">
+                <button id="ton-wallet-connect-btn" type="button">Подключить TON кошелек</button>
+                <button id="ton-wallet-disconnect-btn" type="button">Отключить</button>
+            </div>
+            <div id="ton-wallet-link-hint" class="muted" style="margin-bottom:8px;"></div>
+            <div id="ton-wallet-external-balance" class="muted" style="margin-bottom:10px;"></div>
             <div class="row">
                 <input id="ton-topup-amount-input" type="number" min="0.01" step="0.01" placeholder="Например: 0.5">
             </div>
@@ -901,6 +908,10 @@
         withdrawals: [],
         tonWallet: null,
         tonTopupRequests: [],
+        tonLinkedWallet: null,
+        tonExternalBalance: null,
+        tonConnectManifestUrl: "",
+        tonConnectReady: false,
         activeTab: "inventory",
         marketSearch: "",
         marketFilters: {
@@ -923,6 +934,7 @@
     const REALTIME_OFFERS_INTERVAL_MS = 7000;
     let realtimeOffersTimer = null;
     let realtimeOffersBusy = false;
+    let tonConnectUI = null;
 
     const GIFT_PRESETS = [
         { match: /star.?gift.?unique/i, icon: "💎", title: "Уникальный Telegram Gift" },
@@ -983,6 +995,8 @@
     });
     document.getElementById("ton-topup-open-btn").addEventListener("click", openTonTopupPage);
     document.getElementById("ton-topup-submit-btn").addEventListener("click", submitTonTopupRequest);
+    document.getElementById("ton-wallet-connect-btn").addEventListener("click", connectTonWallet);
+    document.getElementById("ton-wallet-disconnect-btn").addEventListener("click", disconnectTonWallet);
 
     function switchTab(tab, el) {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
@@ -1663,11 +1677,134 @@
         renderTonWalletQuick();
     }
 
+    function shortAddress(raw) {
+        const value = String(raw || "").trim();
+        if (!value) return "-";
+        if (value.length <= 14) return value;
+        return `${value.slice(0, 8)}...${value.slice(-6)}`;
+    }
+
+    function renderTonLinkState() {
+        const linkEl = document.getElementById("ton-wallet-link-hint");
+        const extEl = document.getElementById("ton-wallet-external-balance");
+        const link = state.tonLinkedWallet;
+        if (!link?.connected) {
+            if (linkEl) linkEl.textContent = "Кошелек не подключен";
+            if (extEl) extEl.textContent = "";
+            return;
+        }
+        if (linkEl) linkEl.textContent = `Подключен: ${shortAddress(link.wallet_address)}`;
+        if (extEl) {
+            if (state.tonExternalBalance == null) {
+                extEl.textContent = "Баланс внешнего кошелька: загрузка...";
+            } else {
+                extEl.textContent = `Баланс внешнего кошелька: ${Number(state.tonExternalBalance || 0).toFixed(4)} TON`;
+            }
+        }
+    }
+
+    async function loadTonLink() {
+        try {
+            const response = await apiFetch(`${BASE_URL}/ton/wallet/link`);
+            if (!response.ok) throw new Error("ton_wallet_link_failed");
+            const data = await response.json();
+            state.tonLinkedWallet = data?.link || null;
+        } catch (err) {
+            console.error(err);
+            state.tonLinkedWallet = null;
+        }
+        renderTonLinkState();
+    }
+
+    async function loadTonExternalBalance() {
+        if (!state.tonLinkedWallet?.connected) {
+            state.tonExternalBalance = null;
+            renderTonLinkState();
+            return;
+        }
+        try {
+            const response = await apiFetch(`${BASE_URL}/ton/wallet/external_balance`);
+            const data = await response.json();
+            if (!response.ok || !data?.ok) throw new Error(data?.error || "external_balance_failed");
+            state.tonExternalBalance = Number(data?.balance_ton || 0);
+        } catch (err) {
+            console.error(err);
+            state.tonExternalBalance = null;
+        }
+        renderTonLinkState();
+    }
+
+    async function initTonConnect() {
+        if (state.tonConnectReady) return;
+        try {
+            const response = await apiFetch(`${BASE_URL}/ton/connect/manifest`);
+            const data = await response.json();
+            const manifestUrl = String(data?.manifest_url || "").trim();
+            if (!manifestUrl || !window?.TON_CONNECT_UI?.TonConnectUI) return;
+            state.tonConnectManifestUrl = manifestUrl;
+            tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
+                manifestUrl
+            });
+            state.tonConnectReady = true;
+        } catch (err) {
+            console.error("ton connect init failed", err);
+        }
+    }
+
+    async function connectTonWallet() {
+        await initTonConnect();
+        if (!tonConnectUI) {
+            return tg?.showAlert("TON Connect недоступен");
+        }
+        try {
+            const wallet = await tonConnectUI.connectWallet();
+            const address = String(wallet?.account?.address || "").trim();
+            const chain = String(wallet?.account?.chain || "").trim();
+            if (!address) throw new Error("wallet_address_not_received");
+            const response = await apiFetch(`${BASE_URL}/ton/wallet/link`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ wallet_address: address, wallet_chain: chain })
+            });
+            const data = await response.json();
+            if (!response.ok || !data?.ok) throw new Error(data?.error || "wallet_link_failed");
+            state.tonLinkedWallet = data?.link || null;
+            renderTonLinkState();
+            await loadTonExternalBalance();
+            tg?.showAlert("TON кошелек подключен");
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert(`Не удалось подключить кошелек: ${err.message}`);
+        }
+    }
+
+    async function disconnectTonWallet() {
+        try {
+            if (tonConnectUI) {
+                try {
+                    await tonConnectUI.disconnect();
+                } catch (err) {
+                    console.debug(err);
+                }
+            }
+            await apiFetch(`${BASE_URL}/ton/wallet/unlink`, { method: "POST" });
+            state.tonLinkedWallet = null;
+            state.tonExternalBalance = null;
+            renderTonLinkState();
+            tg?.showAlert("Кошелек отключен");
+        } catch (err) {
+            console.error(err);
+            tg?.showAlert(`Не удалось отключить кошелек: ${err.message}`);
+        }
+    }
+
     function openTonTopupPage() {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
         document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
         document.getElementById("tab-topup").classList.add("active");
         state.activeTab = "topup";
+        loadTonLink();
+        loadTonExternalBalance();
         loadTonTopupRequests();
         softHaptic("light");
     }
@@ -1720,7 +1857,12 @@
             const response = await apiFetch(`${BASE_URL}/ton/wallet/topup_request`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount_ton: amountTon }),
+                body: JSON.stringify({
+                    amount_ton: amountTon,
+                    note: state.tonLinkedWallet?.wallet_address
+                        ? `autopay_from:${String(state.tonLinkedWallet.wallet_address).trim()}`
+                        : ""
+                }),
             });
             const data = await response.json();
             if (!response.ok || !data?.ok) throw new Error(data?.error || "topup_request_failed");
@@ -1730,8 +1872,36 @@
             const memo = String(req?.deposit_memo || "").trim();
             const amount = Number(req?.amount_ton || amountTon || 0).toFixed(4);
             const hintEl = document.getElementById("ton-topup-invoice-hint");
+            const connected = Boolean(state.tonLinkedWallet?.connected);
             if (hintEl) {
-                hintEl.innerHTML = `Отправь <b>${amount} TON</b> на адрес:<br><code>${escapeHtml(address || "-")}</code><br>Комментарий (memo): <code>${escapeHtml(memo || "-")}</code>`;
+                hintEl.innerHTML = connected
+                    ? `Создан инвойс на <b>${amount} TON</b>. Сейчас откроется подключенный кошелек для автоматической оплаты.`
+                    : `Отправь <b>${amount} TON</b> на адрес:<br><code>${escapeHtml(address || "-")}</code><br>Комментарий (memo): <code>${escapeHtml(memo || "-")}</code>`;
+            }
+            if (state.tonLinkedWallet?.connected) {
+                await initTonConnect();
+                if (tonConnectUI && address) {
+                    const amountNano = String(Number(req?.amount_nano || 0));
+                    try {
+                        // Auto-pay flow for linked wallet: user confirms in wallet app, no manual address/memo input.
+                        await tonConnectUI.sendTransaction({
+                            validUntil: Math.floor(Date.now() / 1000) + 15 * 60,
+                            messages: [
+                                {
+                                    address,
+                                    amount: amountNano
+                                }
+                            ]
+                        });
+                        tg?.showAlert("Транзакция отправлена. Ожидаем подтверждение сети.");
+                    } catch (sendErr) {
+                        console.error(sendErr);
+                        if (hintEl) {
+                            hintEl.innerHTML = `Авто-оплата отменена. Оплати вручную: <b>${amount} TON</b><br>Адрес: <code>${escapeHtml(address || "-")}</code><br>Memo: <code>${escapeHtml(memo || "-")}</code>`;
+                        }
+                        tg?.showAlert("Авто-оплата отменена. Можно оплатить вручную по реквизитам.");
+                    }
+                }
             }
             await loadTonTopupRequests();
             tg?.showAlert(`Инвойс создан (#${req?.id || "-"})`);
@@ -1887,9 +2057,12 @@
                 loadInventory(),
                 loadWithdrawals(),
                 loadTonWallet(),
+                loadTonLink(),
                 loadTonTopupRequests(),
                 loadTraitCatalog()
             ]);
+            initTonConnect();
+            loadTonExternalBalance();
         } finally {
             window.clearTimeout(bootTimeout);
             finishBootLoading();
