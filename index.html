@@ -850,6 +850,20 @@
     </div>
 </div>
 
+<div id="exchange-pick-overlay" class="gift-modal-overlay">
+    <div class="gift-modal" style="max-height:88vh;display:flex;flex-direction:column;">
+        <div class="gift-modal-head">
+            <div>
+                <h4 class="gift-modal-title">Обмен: выбери подарок</h4>
+                <div id="exchange-pick-subtitle" class="gift-modal-subtitle"></div>
+            </div>
+            <button id="exchange-pick-close-btn" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div id="exchange-pick-hint" class="muted" style="padding:0 14px 10px;font-size:12px;line-height:1.4;"></div>
+        <div id="exchange-pick-list" class="inventory-grid" style="flex:1;overflow-y:auto;padding:4px 14px 14px;"></div>
+    </div>
+</div>
+
 <nav class="tab-bar">
     <button class="tab-item active" data-tab="inventory">Склад</button>
     <button class="tab-item" data-tab="market">Витрина</button>
@@ -929,7 +943,8 @@
         traitIcons: {
             model: {},
             background: {}
-        }
+        },
+        exchangePickOfferId: null
     };
     const REALTIME_OFFERS_INTERVAL_MS = 7000;
     let realtimeOffersTimer = null;
@@ -997,6 +1012,17 @@
     document.getElementById("ton-topup-submit-btn").addEventListener("click", submitTonTopupRequest);
     document.getElementById("ton-wallet-connect-btn").addEventListener("click", connectTonWallet);
     document.getElementById("ton-wallet-disconnect-btn").addEventListener("click", disconnectTonWallet);
+    document.getElementById("exchange-pick-close-btn").addEventListener("click", closeExchangePickModal);
+    document.getElementById("exchange-pick-overlay").addEventListener("click", (event) => {
+        if (event.target?.id === "exchange-pick-overlay") closeExchangePickModal();
+    });
+    document.getElementById("exchange-pick-list").addEventListener("click", (event) => {
+        const card = event.target?.closest?.(".exchange-pick-item");
+        if (!card) return;
+        const giftId = Number(card.dataset.giftId || 0);
+        const offerId = state.exchangePickOfferId;
+        if (giftId && offerId) submitExchangeWithSelectedGift(offerId, giftId);
+    });
 
     function switchTab(tab, el) {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
@@ -1140,7 +1166,7 @@
                     Комиссия: ${FEE_PER_PARTICIPANT_TON} TON с каждого участника
                 </div>
                 <div class="row" style="margin-top:8px;">
-                    <button class="success" onclick="requestExchangeById(${Number(item.id)})">Предложить обмен</button>
+                    <button class="success" type="button" onclick="openExchangePickModal(${Number(item.id)})">Предложить обмен</button>
                     ${Number(item.owner_id) === Number(userId) ? `<button onclick="removeOffer(${item.id})">Убрать</button>` : ""}
                 </div>
             `;
@@ -1467,40 +1493,132 @@
         }
     }
 
-    async function requestExchange(index) {
-        const listing = state.listings[index];
-        if (!listing || listing.status !== "active") return;
-        if (listing.owner_id === userId) {
+    function closeExchangePickModal() {
+        document.getElementById("exchange-pick-overlay")?.classList.remove("open");
+        state.exchangePickOfferId = null;
+    }
+
+    function giftLooksLikeWantedForOffer(gift, wantedRaw) {
+        const w = String(wantedRaw || "").trim().toLowerCase();
+        if (!w) return false;
+        const p = prettifyGift(gift);
+        const variants = [
+            String(gift?.name || "").trim().toLowerCase(),
+            String(gift?.fragment_slug || "").trim().toLowerCase(),
+            String(p?.rawName || "").trim().toLowerCase()
+        ];
+        return variants.some((v) => v && (v === w || v.endsWith(w) || w.endsWith(v) || v.includes(w) || w.includes(v)));
+    }
+
+    function buildExchangePickCard(gift, isMatch) {
+        const pretty = prettifyGift(gift);
+        const img = resolveGiftPreviewUrl(pretty);
+        const desc = [pretty.model, pretty.pattern, pretty.background].filter(Boolean).join(" · ");
+        const badge = isMatch ? '<span class="badge" style="margin-left:6px;">под запрос</span>' : "";
+        return `
+            <div class="gift-item exchange-pick-item" data-gift-id="${Number(gift.id || 0)}" role="button" tabindex="0" style="cursor:pointer;">
+                <span class="gift-preview">
+                    ${img ? `<img src="${escapeHtml(img)}" alt="" />` : `<span>${pretty.icon}</span>`}
+                </span>
+                <div class="gift-name" style="font-size:13px;">${escapeHtml(pretty.title || gift?.name || "Подарок")}${badge}</div>
+                ${desc ? `<div class="muted" style="font-size:11px;margin-top:4px;">${escapeHtml(desc)}</div>` : ""}
+            </div>
+        `;
+    }
+
+    async function openExchangePickModal(offerId) {
+        if (!userId) {
+            return tg?.showAlert("Открой приложение из Telegram");
+        }
+        const listing = state.listings.find((x) => Number(x.id) === Number(offerId));
+        if (!listing || listing.status !== "active") {
+            return tg?.showAlert("Оффер не найден. Обнови витрину.");
+        }
+        if (Number(listing.owner_id) === Number(userId)) {
             return tg?.showAlert("Нельзя отправить обмен самому себе");
         }
+        state.exchangePickOfferId = Number(offerId);
+        await loadInventory();
+        const wantedRaw = listing.wanted_gift;
+        const wantPretty = prettifyGift(wantedRaw);
+        const givePretty = prettifyGift(listing.gift_name);
+        document.getElementById("exchange-pick-subtitle").textContent = `Ты получишь: ${givePretty.title || String(listing.gift_name || "")}`;
+        const hintEl = document.getElementById("exchange-pick-hint");
+        const wantLabel = wantPretty.title || String(wantedRaw || "");
+        hintEl.textContent = `Выбери со склада подарок, который соответствует запросу автора: «${wantLabel}».`;
 
+        const matches = state.gifts.filter((g) => giftLooksLikeWantedForOffer(g, wantedRaw));
+        const pool = matches.length ? matches : state.gifts.slice();
+        const listEl = document.getElementById("exchange-pick-list");
+        if (!pool.length) {
+            listEl.innerHTML =
+                '<div class="empty" style="grid-column:1/-1;">В инвентаре нет подарков. Сначала получи подарок на склад.</div>';
+        } else if (!matches.length) {
+            listEl.innerHTML =
+                '<div class="empty" style="grid-column:1/-1;">Нет явного совпадения с текстом запроса — показан весь склад. Сервер проверит, подходит ли выбранный подарок.</div>' +
+                pool.map((g) => buildExchangePickCard(g, false)).join("");
+        } else {
+            listEl.innerHTML = pool.map((g) => buildExchangePickCard(g, true)).join("");
+        }
+        document.getElementById("exchange-pick-overlay")?.classList.add("open");
+        softHaptic("light");
+    }
+
+    async function submitExchangeWithSelectedGift(offerId, inventoryGiftId) {
         try {
             const response = await apiFetch(`${BASE_URL}/exchanges`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    offer_id: listing.id,
-                    fee_per_user_ton: FEE_PER_PARTICIPANT_TON
+                    offer_id: offerId,
+                    fee_per_user_ton: FEE_PER_PARTICIPANT_TON,
+                    inventory_gift_id: inventoryGiftId
                 })
             });
-            const data = await response.json();
-            if (!response.ok || !data.ok) throw new Error(data.error || "cannot create exchange");
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                console.error(parseErr);
+            }
+            if (!response.ok || !data.ok) {
+                const raw = data?.error || `HTTP ${response.status}`;
+                const human = {
+                    requester_gift_not_in_inventory: "Нет подходящего подарка на складе под это объявление.",
+                    selected_gift_does_not_match_wanted: "Выбранный подарок не соответствует запросу в объявлении.",
+                    requester_gift_not_found: "Подарок не найден на складе.",
+                    owner_gift_not_in_inventory: "У автора объявления больше нет подарка из объявления.",
+                    cannot_exchange_with_yourself: "Нельзя обменяться самим с собой.",
+                    offer_not_found: "Объявление не найдено.",
+                    offer_is_not_active: "Объявление уже не активно."
+                }[raw] || raw;
+                throw new Error(human);
+            }
+            closeExchangePickModal();
             await loadMyExchanges();
-            tg?.sendData(JSON.stringify({ action: "create_exchange_request", exchange: data.exchange }));
-            tg?.showAlert(`Запрос отправлен: ${data.exchange.id}\nКомиссия: ${data.exchange.fee_per_user_ton} TON с каждого`);
+            await loadOffers();
+            try {
+                tg?.sendData(JSON.stringify({ action: "create_exchange_request", exchange: data.exchange }));
+            } catch (sdErr) {
+                console.debug(sdErr);
+            }
+            tg?.showAlert(
+                `Запрос отправлен №${data.exchange?.id || ""}. Комиссия: ${data.exchange?.fee_per_user_ton} TON с каждого`
+            );
         } catch (err) {
             console.error(err);
-            tg?.showAlert("Не удалось отправить запрос обмена");
+            tg?.showAlert(`Не удалось отправить: ${err.message}`);
         }
     }
 
+    async function requestExchange(index) {
+        const listing = state.listings[index];
+        if (!listing || listing.status !== "active") return;
+        await openExchangePickModal(listing.id);
+    }
+
     async function requestExchangeById(offerId) {
-        const index = state.listings.findIndex((item) => Number(item.id) === Number(offerId));
-        if (index < 0) {
-            tg?.showAlert("Оффер не найден. Обнови витрину.");
-            return;
-        }
-        await requestExchange(index);
+        await openExchangePickModal(offerId);
     }
 
     async function removeOffer(offerId) {
