@@ -591,18 +591,23 @@
         .gift-modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(4, 8, 18, 0.68);
-            backdrop-filter: blur(6px);
-            display: none;
+            background: rgba(4, 8, 18, 0.72);
+            backdrop-filter: blur(8px);
+            display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1200;
             padding: 14px;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
         .gift-modal-overlay.open {
-            display: flex;
-            animation: fadeIn 0.2s ease;
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
 
         .gift-modal {
@@ -614,7 +619,35 @@
             background: linear-gradient(180deg, rgba(39, 54, 91, 0.98), rgba(28, 39, 66, 0.98));
             box-shadow: 0 22px 48px rgba(1, 6, 18, 0.56);
             padding: 14px;
-            animation: slideUp 0.22s ease;
+            transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .gift-modal-overlay:not(.open) .gift-modal {
+            transform: translate3d(0, 22px, 0) scale(0.94);
+            opacity: 0;
+        }
+
+        .gift-modal-overlay.open .gift-modal {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 1;
+            box-shadow: 0 26px 56px rgba(1, 6, 18, 0.62), 0 0 0 1px rgba(180, 210, 255, 0.12);
+        }
+
+        .gift-modal-overlay.open .gift-modal-head {
+            animation: giftModalHeadIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.04s both;
+        }
+
+        .gift-modal-overlay.open .gift-modal-info {
+            animation: giftModalHeadIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both;
+        }
+
+        .gift-modal-overlay.open .gift-modal-actions {
+            animation: giftModalHeadIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+        }
+
+        .gift-modal-overlay.open .gift-modal-image img,
+        .gift-modal-overlay.open .gift-modal-image .gift-preview-fallback {
+            animation: giftModalHeroIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
         }
 
         .gift-modal-head {
@@ -699,6 +732,44 @@
         @keyframes slideUp {
             from { transform: translateY(12px); opacity: 0.7; }
             to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes giftModalHeadIn {
+            from {
+                opacity: 0;
+                transform: translate3d(0, -10px, 0);
+            }
+            to {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+        }
+
+        @keyframes giftModalHeroIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .gift-modal-overlay {
+                transition-duration: 0.01ms !important;
+            }
+            .gift-modal {
+                transition-duration: 0.01ms !important;
+            }
+            .gift-modal-overlay.open .gift-modal-head,
+            .gift-modal-overlay.open .gift-modal-info,
+            .gift-modal-overlay.open .gift-modal-actions,
+            .gift-modal-overlay.open .gift-modal-image img,
+            .gift-modal-overlay.open .gift-modal-image .gift-preview-fallback {
+                animation: none !important;
+            }
         }
 
         @keyframes tabReveal {
