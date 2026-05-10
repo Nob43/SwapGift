@@ -740,7 +740,7 @@
                 </div>
             </div>
             <div class="ton-quick">
-                <span id="ton-balance-pill" class="ton-balance-pill">TON: --</span>
+                <span id="ton-balance-pill" class="ton-balance-pill" title="TON внутри приложения (зачисляется после оплаты заявки на депозитный адрес бота)">TON: --</span>
                 <button id="ton-topup-open-btn" class="ton-topup-btn primary" type="button">Пополнить</button>
             </div>
         </div>
@@ -800,6 +800,9 @@
     <section id="tab-topup" class="tab-content">
         <div class="card ton-topup-card">
             <h3 class="card-title">Пополнение TON</h3>
+            <p class="muted" style="margin:0 0 10px;font-size:12px;line-height:1.35;">
+                Цифра «TON» в шапке — баланс в боте; он обновится после того, как транзакция попадёт на депозитный адрес по заявке (обычно до минуты после подтверждения в сети). Ниже — ончейн-баланс подключённого кошелька.
+            </p>
             <div class="row" style="margin-bottom:10px;">
                 <button id="ton-wallet-connect-btn" type="button">Подключить TON кошелек</button>
                 <button id="ton-wallet-disconnect-btn" type="button">Отключить</button>
@@ -1978,14 +1981,15 @@
         }
     }
 
-    function openTonTopupPage() {
+    async function openTonTopupPage() {
         document.querySelectorAll(".tab-item").forEach((b) => b.classList.remove("active"));
         document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
         document.getElementById("tab-topup").classList.add("active");
         state.activeTab = "topup";
-        loadTonLink();
-        loadTonExternalBalance();
-        loadTonTopupRequests();
+        await loadTonLink();
+        await loadTonWallet();
+        await loadTonExternalBalance();
+        await loadTonTopupRequests();
         softHaptic("light");
     }
 
@@ -2023,8 +2027,34 @@
             state.tonTopupRequests = Array.isArray(data?.items) ? data.items : [];
             renderTonTopupRequests();
         } catch (err) {
-            console.error(err);image.png
+            console.error(err);
         }
+    }
+
+    async function refreshTonFundingUi() {
+        await loadTonWallet();
+        await loadTonExternalBalance();
+        await loadTonTopupRequests();
+        renderTonWalletQuick();
+        renderTonLinkState();
+        renderTonTopupRequests();
+    }
+
+    function scheduleTonTopupStatusPoll(requestId, options = {}) {
+        const rid = Number(requestId || 0);
+        if (!rid) return;
+        const maxMs = Number(options.maxMs) > 0 ? Number(options.maxMs) : 120000;
+        const intervalMs = Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 4000;
+        const start = Date.now();
+        const tick = async () => {
+            await refreshTonFundingUi();
+            const item = (state.tonTopupRequests || []).find((r) => Number(r?.id) === rid);
+            const st = String(item?.status || "").toLowerCase();
+            if (st === "paid") return;
+            if (Date.now() - start >= maxMs) return;
+            window.setTimeout(tick, intervalMs);
+        };
+        window.setTimeout(tick, intervalMs);
     }
 
     async function submitTonTopupRequest() {
@@ -2074,6 +2104,8 @@
                             ]
                         });
                         tg?.showAlert("Транзакция отправлена. Ожидаем подтверждение сети.");
+                        await refreshTonFundingUi();
+                        scheduleTonTopupStatusPoll(req?.id, { maxMs: 180000, intervalMs: 4000 });
                     } catch (sendErr) {
                         console.error(sendErr);
                         if (hintEl) {
@@ -2084,6 +2116,8 @@
                 }
             }
             await loadTonTopupRequests();
+            scheduleTonTopupStatusPoll(req?.id, { maxMs: 180000, intervalMs: 4000 });
+            await refreshTonFundingUi();
             tg?.showAlert(`Инвойс создан (#${req?.id || "-"})`);
         } catch (err) {
             console.error(err);
@@ -2253,6 +2287,8 @@
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
             refreshOffersRealtime();
+            loadTonWallet();
+            loadTonLink().then(() => loadTonExternalBalance());
         }
     });
 
