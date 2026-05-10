@@ -1852,20 +1852,82 @@
         renderTonLinkState();
     }
 
+    /**
+     * TON Connect: манифест должен быть на том же origin, что и Mini App (GitHub Pages).
+     * Ссылка на ngrok для manifestUrl не подходит — кошелёк грузит JSON отдельно и проверяет host.
+     */
+    function getTonConnectManifestUrl() {
+        const loc = window.location;
+        let pathname = loc.pathname || "/";
+        if (!pathname.endsWith("/")) {
+            const last = pathname.split("/").filter(Boolean).pop() || "";
+            if (last.includes(".")) {
+                pathname = pathname.replace(/\/[^/]+$/, "/");
+            } else {
+                pathname = `${pathname}/`;
+            }
+        }
+        return `${loc.origin}${pathname}tonconnect-manifest.json`;
+    }
+
+    /** Директория URL-пути: /a/b/tonconnect-manifest.json -> /a/b */
+    function tonConnectManifestDirPath(pathname) {
+        let p = pathname || "/";
+        if (!p.startsWith("/")) p = `/${p}`;
+        p = p.replace(/\/+$/, "");
+        const i = p.lastIndexOf("/");
+        if (i <= 0) return "/";
+        return p.slice(0, i) || "/";
+    }
+
     async function initTonConnect() {
         if (state.tonConnectReady) return;
+        if (!window?.TON_CONNECT_UI?.TonConnectUI) return;
+        const manifestUrl = getTonConnectManifestUrl();
         try {
-            const response = await apiFetch(`${BASE_URL}/ton/connect/manifest`);
-            const data = await response.json();
-            const manifestUrl = String(data?.manifest_url || "").trim();
-            if (!manifestUrl || !window?.TON_CONNECT_UI?.TonConnectUI) return;
+            const probe = await fetch(manifestUrl, { method: "GET", cache: "no-store" });
+            if (!probe.ok) {
+                console.warn("tonconnect manifest fetch", probe.status, manifestUrl);
+                tg?.showAlert(
+                    `Нет файла манифеста по адресу:\n${manifestUrl}\n\nЗалей tonconnect-manifest.json рядом с index.html на GitHub Pages (в ту же папку) и открой приложение заново.`
+                );
+                return;
+            }
+            const manifestJson = await probe.json();
+            const appUrl = String(manifestJson?.url || "").trim();
+            if (!appUrl || appUrl.includes("YOUR_USERNAME") || appUrl.includes("example.com")) {
+                tg?.showAlert(
+                    "В tonconnect-manifest.json на GitHub укажи реальный url Mini App (как в BotFather), без плейсхолдеров YOUR_USERNAME / example.com."
+                );
+                return;
+            }
+            try {
+                const manifestLoc = new URL(manifestUrl);
+                const appLoc = new URL(appUrl);
+                if (manifestLoc.origin !== appLoc.origin) {
+                    tg?.showAlert(
+                        `TON Connect: в манифесте поле url (${appLoc.origin}) должно быть на том же домене, откуда открыт файл манифеста (${manifestLoc.origin}). Кошелёк иначе пишет «неверный манифест».`
+                    );
+                    return;
+                }
+                const appPath = (appLoc.pathname || "/").replace(/\/+$/, "") || "/";
+                const manifestDir = tonConnectManifestDirPath(manifestLoc.pathname);
+                if (appPath !== manifestDir) {
+                    tg?.showAlert(
+                        `TON Connect: поле url в JSON («${appPath}») не совпадает с папкой манифеста («${manifestDir}»). Исправь url на базу приложения без слэша в конце (как https://user.github.io/Repo) — тот же префикс, что в адресе tonconnect-manifest.json. Если репозиторий переименован, залей манифест в новую папку Pages и обнови url.`
+                    );
+                    return;
+                }
+            } catch (e) {
+                tg?.showAlert("В tonconnect-manifest.json поле url должно быть полным HTTPS (например https://user.github.io/Repo).");
+                return;
+            }
             state.tonConnectManifestUrl = manifestUrl;
-            tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({
-                manifestUrl
-            });
+            tonConnectUI = new window.TON_CONNECT_UI.TonConnectUI({ manifestUrl });
             state.tonConnectReady = true;
         } catch (err) {
             console.error("ton connect init failed", err);
+            tg?.showAlert("Не удалось загрузить tonconnect-manifest.json. Проверь, что файл есть на GitHub Pages и URL внутри JSON верный.");
         }
     }
 
@@ -1961,7 +2023,7 @@
             state.tonTopupRequests = Array.isArray(data?.items) ? data.items : [];
             renderTonTopupRequests();
         } catch (err) {
-            console.error(err);
+            console.error(err);image.png
         }
     }
 
