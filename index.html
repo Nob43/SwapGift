@@ -949,7 +949,7 @@
         },
         exchangePickOfferId: null
     };
-    /** Период опроса витрины (offers) и списка обменов (exchanges) в фоне, мс */
+    /** Период фонового опроса: витрина, обмены, склад и заявки на вывод, мс */
     const REALTIME_OFFERS_INTERVAL_MS = 7000;
     let realtimeOffersTimer = null;
     let realtimeOffersBusy = false;
@@ -1035,7 +1035,7 @@
         document.getElementById(`tab-${tab}`).classList.add("active");
         state.activeTab = tab;
         softHaptic("light");
-        if (tab === "market" || tab === "orders") {
+        if (tab === "inventory" || tab === "market" || tab === "orders") {
             void refreshOffersRealtime();
         }
     }
@@ -1755,7 +1755,7 @@
         if (realtimeOffersBusy || document.hidden) return;
         realtimeOffersBusy = true;
         try {
-            await Promise.allSettled([loadOffers(), loadMyExchanges()]);
+            await Promise.allSettled([loadOffers(), loadMyExchanges(), loadInventory(), loadWithdrawals()]);
         } finally {
             realtimeOffersBusy = false;
         }
