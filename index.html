@@ -6,6 +6,7 @@
     <title>GiftMatch Mini App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/lottie-web@5.12.2/build/player/lottie.min.js"></script>
     <style>
         :root {
             --bg: #11172a;
@@ -645,9 +646,139 @@
             animation: giftModalHeadIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
         }
 
-        .gift-modal-overlay.open .gift-modal-image img,
-        .gift-modal-overlay.open .gift-modal-image .gift-preview-fallback {
-            animation: giftModalHeroIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+        /* «Распаковка» превью + Lottie с Fragment (как анимированная карточка в Telegram) */
+        .gift-modal-image-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            overflow: hidden;
+            transform-style: preserve-3d;
+        }
+
+        .gift-modal-image-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: 50% 58%;
+            will-change: transform, filter;
+        }
+
+        .gift-modal-image-inner img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gift-modal-image-inner .gift-preview-fallback {
+            font-size: clamp(3rem, 18vw, 5rem);
+        }
+
+        .gift-modal-lottie-host {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .gift-modal-lottie-host svg {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 100%;
+        }
+
+        .gift-modal-overlay.open .gift-modal-image-inner {
+            animation: giftTelegramUnbox 0.88s cubic-bezier(0.22, 1.15, 0.32, 1) 0.06s both;
+        }
+
+        .gift-modal-image-sparkles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .gift-modal-image-sparkles .gift-spark {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 6px;
+            height: 6px;
+            margin: -3px 0 0 -3px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff 0%, rgba(255, 214, 140, 0.95) 42%, rgba(120, 180, 255, 0.35) 70%, transparent 72%);
+            box-shadow: 0 0 10px rgba(255, 240, 200, 0.9);
+            opacity: 0;
+            transform: rotate(var(--spark-rot, 0deg)) translate3d(0, 0, 0) scale(0);
+        }
+
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark {
+            animation: giftSparkBurst 0.72s ease-out forwards;
+        }
+
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(1) {
+            animation-delay: 0.12s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(2) {
+            animation-delay: 0.14s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(3) {
+            animation-delay: 0.16s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(4) {
+            animation-delay: 0.18s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(5) {
+            animation-delay: 0.2s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(6) {
+            animation-delay: 0.22s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(7) {
+            animation-delay: 0.24s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(8) {
+            animation-delay: 0.26s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(9) {
+            animation-delay: 0.28s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(10) {
+            animation-delay: 0.3s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(11) {
+            animation-delay: 0.32s;
+        }
+        .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark:nth-child(12) {
+            animation-delay: 0.34s;
+        }
+
+        .gift-modal-image-shine {
+            position: absolute;
+            inset: -20% -40%;
+            z-index: 2;
+            pointer-events: none;
+            background: linear-gradient(
+                108deg,
+                transparent 0%,
+                transparent 40%,
+                rgba(255, 255, 255, 0.08) 44%,
+                rgba(255, 255, 255, 0.55) 50%,
+                rgba(255, 255, 255, 0.08) 56%,
+                transparent 62%,
+                transparent 100%
+            );
+            transform: translate3d(-35%, 0, 0) rotate(12deg);
+            opacity: 0;
+        }
+
+        .gift-modal-overlay.open .gift-modal-image-shine {
+            animation: giftShineSweep 0.75s ease-in-out 0.22s forwards;
         }
 
         .gift-modal-head {
@@ -701,13 +832,7 @@
             border: 1px solid rgba(142, 177, 244, 0.35);
             background: rgba(13, 21, 38, 0.72);
             margin-bottom: 12px;
-        }
-
-        .gift-modal-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
+            perspective: 920px;
         }
 
         .gift-modal-info {
@@ -756,6 +881,55 @@
             }
         }
 
+        @keyframes giftTelegramUnbox {
+            0% {
+                opacity: 0;
+                transform: translate3d(0, 12%, 0) rotateX(14deg) scale(0.32);
+                filter: brightness(1.5) blur(4px);
+            }
+            48% {
+                opacity: 1;
+                transform: translate3d(0, -2%, 0) rotateX(-3deg) scale(1.07);
+                filter: brightness(1.18) blur(0);
+            }
+            74% {
+                transform: translate3d(0, 1%, 0) rotateX(2deg) scale(0.97);
+                filter: brightness(1.05) blur(0);
+            }
+            100% {
+                transform: translate3d(0, 0, 0) rotateX(0) scale(1);
+                filter: brightness(1) blur(0);
+            }
+        }
+
+        @keyframes giftSparkBurst {
+            0% {
+                opacity: 0;
+                transform: rotate(var(--spark-rot, 0deg)) translate3d(0, 0, 0) scale(0);
+            }
+            28% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: rotate(var(--spark-rot, 0deg)) translate3d(0, min(-38vw, -140px), 0) scale(1);
+            }
+        }
+
+        @keyframes giftShineSweep {
+            0% {
+                transform: translate3d(-55%, 0, 0) rotate(12deg);
+                opacity: 0;
+            }
+            14% {
+                opacity: 0.9;
+            }
+            100% {
+                transform: translate3d(90%, 0, 0) rotate(12deg);
+                opacity: 0;
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .gift-modal-overlay {
                 transition-duration: 0.01ms !important;
@@ -767,7 +941,10 @@
             .gift-modal-overlay.open .gift-modal-info,
             .gift-modal-overlay.open .gift-modal-actions,
             .gift-modal-overlay.open .gift-modal-image img,
-            .gift-modal-overlay.open .gift-modal-image .gift-preview-fallback {
+            .gift-modal-overlay.open .gift-modal-image .gift-preview-fallback,
+            .gift-modal-overlay.open .gift-modal-image-inner,
+            .gift-modal-overlay.open .gift-modal-image-sparkles .gift-spark,
+            .gift-modal-overlay.open .gift-modal-image-shine {
                 animation: none !important;
             }
         }
@@ -1018,7 +1195,8 @@
             model: {},
             background: {}
         },
-        exchangePickOfferId: null
+        exchangePickOfferId: null,
+        giftModalLottieAnim: null
     };
     /** Период фонового опроса: витрина, обмены, склад и заявки на вывод, мс */
     const REALTIME_OFFERS_INTERVAL_MS = 7000;
@@ -1512,17 +1690,108 @@
         softHaptic("light");
     }
 
+    const FRAGMENT_GIFT_SLUG_RE = /^[a-z][a-z0-9_-]*-\d+$/i;
+
+    function extractFragmentGiftSlugForLottie(gift, pretty) {
+        const candidates = [gift?.name, gift?.gift_name, pretty?.rawName, gift?.fragment_slug];
+        for (const c of candidates) {
+            const s = String(c || "").trim().toLowerCase();
+            if (FRAGMENT_GIFT_SLUG_RE.test(s)) return s;
+        }
+        const img = String(pretty?.image || gift?.gift_image || gift?.image || "");
+        const m = img.match(/\/gift\/([a-z0-9_-]+-\d+)\./i);
+        return m ? m[1].toLowerCase() : "";
+    }
+
+    function destroyGiftModalLottie() {
+        try {
+            if (state.giftModalLottieAnim?.destroy) {
+                state.giftModalLottieAnim.destroy();
+            }
+        } catch (err) {
+            console.debug("gift lottie destroy", err);
+        }
+        state.giftModalLottieAnim = null;
+    }
+
+    function buildGiftModalSparklesHtml() {
+        return Array.from({ length: 12 }, (_, i) => {
+            const rot = i * 30;
+            return `<span class="gift-spark" style="--spark-rot:${rot}deg" aria-hidden="true"></span>`;
+        }).join("");
+    }
+
+    function buildGiftModalStageInnerHtml(slug, pretty) {
+        const reduce = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+        if (slug && !reduce) {
+            return `<div id="gift-modal-lottie-host" class="gift-modal-lottie-host"></div>`;
+        }
+        if (pretty.image) {
+            const src = escapeHtml(resolveImageUrl(pretty.image));
+            return `<img src="${src}" alt="${escapeHtml(pretty.title || "Подарок")}" />`;
+        }
+        return `<div class="gift-preview-fallback" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;">${pretty.icon}</div>`;
+    }
+
+    function mountFragmentGiftLottie(slug, pretty) {
+        if (!slug) return;
+        const host = document.getElementById("gift-modal-lottie-host");
+        if (!host || !window.lottie?.loadAnimation) return;
+        void (async () => {
+            const url = `https://nft.fragment.com/gift/${encodeURIComponent(slug)}.lottie.json`;
+            try {
+                const res = await fetch(url, { mode: "cors", cache: "force-cache" });
+                if (!res.ok) throw new Error("lottie_http");
+                const animationData = await res.json();
+                const overlay = document.getElementById("gift-modal-overlay");
+                if (!overlay?.classList.contains("open") || !host.isConnected) {
+                    return;
+                }
+                host.innerHTML = "";
+                const anim = window.lottie.loadAnimation({
+                    container: host,
+                    renderer: "svg",
+                    loop: true,
+                    autoplay: true,
+                    animationData
+                });
+                if (!document.getElementById("gift-modal-overlay")?.classList.contains("open")) {
+                    anim.destroy();
+                    return;
+                }
+                state.giftModalLottieAnim = anim;
+            } catch (err) {
+                console.debug("gift lottie fallback", err);
+                if (!document.getElementById("gift-modal-overlay")?.classList.contains("open")) return;
+                host.innerHTML = "";
+                if (pretty.image) {
+                    const src = escapeHtml(resolveImageUrl(pretty.image));
+                    host.innerHTML = `<img src="${src}" alt="${escapeHtml(pretty.title || "Подарок")}" style="width:100%;height:100%;object-fit:cover;display:block" />`;
+                } else {
+                    host.innerHTML = `<div class="gift-preview-fallback" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;">${pretty.icon}</div>`;
+                }
+            }
+        })();
+    }
+
     function openGiftModal(index) {
         const gift = state.gifts[index];
         if (!gift) return;
+        destroyGiftModalLottie();
         state.activeGiftIndex = index;
         const pretty = prettifyGift(gift);
         document.getElementById("gift-modal-title").textContent = pretty.title || "Подарок";
         const numberMatch = String(gift?.name || pretty.rawName || gift?.fragment_slug || "").match(/-(\d+)\b/);
         document.getElementById("gift-modal-subtitle").textContent = numberMatch ? `#${numberMatch[1]}` : "";
-        document.getElementById("gift-modal-image").innerHTML = pretty.image
-            ? `<img src="${escapeHtml(resolveImageUrl(pretty.image))}" alt="${escapeHtml(pretty.title)}" />`
-            : `<div class="gift-preview-fallback" style="display:flex;align-items:center;justify-content:center;height:100%;">${pretty.icon}</div>`;
+        const slug = extractFragmentGiftSlugForLottie(gift, pretty);
+        const sparks = buildGiftModalSparklesHtml();
+        const inner = buildGiftModalStageInnerHtml(slug, pretty);
+        document.getElementById("gift-modal-image").innerHTML = `
+            <div class="gift-modal-image-stage">
+                <div class="gift-modal-image-sparkles" aria-hidden="true">${sparks}</div>
+                <div class="gift-modal-image-shine" aria-hidden="true"></div>
+                <div class="gift-modal-image-inner">${inner}</div>
+            </div>`;
         const info = [];
         if (pretty.model) info.push(`Модель: <b>${escapeHtml(pretty.model)}</b>`);
         if (pretty.pattern) info.push(`Узор: <b>${escapeHtml(pretty.pattern)}</b>`);
@@ -1531,9 +1800,13 @@
             ? info.map((line) => `<div>${line}</div>`).join("")
             : '<div class="empty" style="text-align:left;padding:0;">Нет доп. информации</div>';
         document.getElementById("gift-modal-overlay").classList.add("open");
+        if (slug && !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+            requestAnimationFrame(() => mountFragmentGiftLottie(slug, pretty));
+        }
     }
 
     function closeGiftModal() {
+        destroyGiftModalLottie();
         document.getElementById("gift-modal-overlay").classList.remove("open");
         state.activeGiftIndex = -1;
     }
