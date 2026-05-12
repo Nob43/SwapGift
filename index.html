@@ -1153,7 +1153,6 @@
     }
 
     const BASE_URL = resolveApiBaseUrl();
-    const FEE_PER_PARTICIPANT_TON = 0.6;
     const bootOverlayEl = document.getElementById("boot-overlay");
     document.body.classList.add("boot-loading");
 
@@ -1418,9 +1417,6 @@
                     <span class="badge">user: ${item.owner_name}</span>
                     <span class="badge">${item.status}</span>
                 </div>
-                <div style="margin-top:7px;color:var(--muted);font-size:12px;">
-                    Комиссия: ${FEE_PER_PARTICIPANT_TON} TON с каждого участника
-                </div>
                 <div class="row" style="margin-top:8px;">
                     <button class="success" type="button" onclick="openExchangePickModal(${Number(item.id)})">Предложить обмен</button>
                     ${Number(item.owner_id) === Number(userId) ? `<button onclick="removeOffer(${item.id})">Убрать</button>` : ""}
@@ -1619,8 +1615,6 @@
                 <div>${offered.icon} Отдаешь: ${escapeHtml(offered.title)}</div>
                 <div>${requested.icon} Хочешь получить: ${escapeHtml(requested.title)}</div>
                 <div>Владелец оффера: ${escapeHtml(order.owner_name)}</div>
-                <div>Твоя комиссия: ${order.fee_per_user_ton} TON</div>
-                <div>Общая комиссия сделки: ${order.total_fee_ton} TON</div>
                 <div style="color:var(--muted);margin-top:4px;">${new Date(order.created_at).toLocaleString()}</div>
                 <div class="row" style="margin-top:8px;">
                     ${renderExchangeActions(order)}
@@ -1922,7 +1916,6 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     offer_id: offerId,
-                    fee_per_user_ton: FEE_PER_PARTICIPANT_TON,
                     inventory_gift_id: inventoryGiftId
                 })
             });
@@ -1953,9 +1946,7 @@
             } catch (sdErr) {
                 console.debug(sdErr);
             }
-            tg?.showAlert(
-                `Запрос отправлен №${data.exchange?.id || ""}. Комиссия: ${data.exchange?.fee_per_user_ton} TON с каждого`
-            );
+            tg?.showAlert(`Запрос на обмен отправлен №${data.exchange?.id || ""}.`);
         } catch (err) {
             console.error(err);
             tg?.showAlert(`Не удалось отправить: ${err.message}`);
